@@ -194,8 +194,37 @@ export async function GET(req: NextRequest) {
     if (v) headers.set(h, v);
   }
   if (!headers.has("Accept-Ranges")) headers.set("Accept-Ranges", "bytes");
-  headers.set("Cache-Control", "public, max-age=300");
+
+  /**
+   * Cache per browser session. Creatives are content-addressed by their
+   * /m/<id>/ path, so a re-mounted <img> must not pull 1.2 MB again.
+   *   - 206 slices are never cached: a partial body reused as a whole object
+   *     would corrupt video seeking.
+   *   - images: long-lived and immutable (the path changes per generation).
+   *   - video/audio: cached, but revalidated sooner since a signed URL may
+   *     expire underneath it.
+   */
+  const cacheControl =
+    upstream.status === 206
+      ? "no-store"
+      : ctype.startsWith("image/")
+        ? "private, max-age=86400, immutable"
+        : "private, max-age=3600";
+  headers.set("Cache-Control", cacheControl);
   headers.set("X-Content-Type-Options", "nosniff");
+
+  // Honour revalidation even after max-age: answer 304 without a body rather
+  // than shipping the bytes again.
+  const etag = upstream.headers.get("etag");
+  if (etag) headers.set("ETag", etag);
+  const ifNoneMatch = req.headers.get("if-none-match");
+  if (etag && ifNoneMatch && ifNoneMatch === etag) {
+    upstream.body?.cancel().catch(() => {});
+    const notModified = new Headers();
+    notModified.set("Cache-Control", cacheControl);
+    notModified.set("ETag", etag);
+    return new NextResponse(null, { status: 304, headers: notModified });
+  }
 
   return new NextResponse(upstream.body, { status: upstream.status, headers });
 }
