@@ -116,8 +116,12 @@ export async function allKeyStatuses(): Promise<KeyStatus[]> {
   return Promise.all(SERVICES.map(keyStatus));
 }
 
-/** Simple passcode gate for the setup panel (demo deployment). */
+/**
+ * Passcode gate for the setup panel. Requires ADMIN_PASSCODE — with it unset
+ * the panel stays locked instead of accepting a well-known default.
+ */
 export function passcodeValid(input: string | undefined | null): boolean {
-  const expected = process.env.ADMIN_PASSCODE || "demo";
+  const expected = process.env.ADMIN_PASSCODE?.trim();
+  if (!expected) return false;
   return typeof input === "string" && input.length > 0 && input === expected;
 }

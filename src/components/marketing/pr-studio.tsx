@@ -1413,11 +1413,12 @@ function SetupTab({
         <Terminal className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
         <p className="text-xs leading-relaxed text-amber-100/80">
           <strong className="font-semibold">BYOK — bring your own key.</strong> Keys are
-          stored server-side only (a 0600 file on this machine) and never sent back to the
-          browser — the UI shows a masked preview only. P&amp;R keys are verified with a
-          real <code className="font-mono">tools/list</code> probe before being saved. Demo
-          deployment passcode: <code className="font-mono text-amber-200">demo</code>{" "}
-          (override with the ADMIN_PASSCODE env var).
+          stored server-side only and never sent back to the browser — the UI shows a
+          masked preview only. P&amp;R keys are verified with a real{" "}
+          <code className="font-mono">tools/list</code> probe before being saved. The setup
+          passcode comes from the{" "}
+          <code className="font-mono text-amber-200">ADMIN_PASSCODE</code> environment
+          variable.
         </p>
       </div>
 
@@ -1436,7 +1437,7 @@ function SetupTab({
             type="password"
             value={passcode}
             onChange={(e) => setPasscode(e.target.value)}
-            placeholder="demo"
+            placeholder="passcode"
             className="max-w-xs border-white/15 bg-black/50 font-mono text-sm text-zinc-100 placeholder:text-zinc-600"
           />
         </div>

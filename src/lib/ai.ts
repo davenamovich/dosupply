@@ -1,5 +1,3 @@
-import ZAI from "z-ai-web-dev-sdk";
-
 /**
  * Shared grounding context for every generation call.
  * Facts below were verified from DO Supply's own first-party sources
@@ -31,13 +29,46 @@ HARD RULES (violating these fails the demo):
 export const JSON_ONLY_INSTRUCTION =
   "Respond with a single valid JSON object only. No markdown fences, no commentary before or after. Every string you output must be finished content (not placeholders like '...').";
 
-let cachedZai: Awaited<ReturnType<typeof ZAI.create>> | null = null;
+/* ------------------------------------------------------------------ */
+/* LLM provider                                                        */
+/*                                                                     */
+/* Any OpenAI-compatible /chat/completions endpoint, configured with   */
+/* LLM_BASE_URL, LLM_API_KEY and LLM_MODEL. No config file, so the     */
+/* same code runs in local dev, Docker and Railway.                    */
+/* ------------------------------------------------------------------ */
 
-export async function getZai() {
-  if (!cachedZai) {
-    cachedZai = await ZAI.create();
+type LlmMessage = { role: "system" | "user" | "assistant"; content: string };
+
+type LlmConfig = { endpoint: string; apiKey: string; model: string };
+
+const REQUEST_TIMEOUT_MS = 90_000;
+
+function llmConfig(): LlmConfig {
+  const baseUrl = (process.env.LLM_BASE_URL || "").trim().replace(/\/+$/, "");
+  const apiKey = (process.env.LLM_API_KEY || "").trim();
+  const model = (process.env.LLM_MODEL || "").trim();
+
+  const missing = [
+    baseUrl ? null : "LLM_BASE_URL",
+    apiKey ? null : "LLM_API_KEY",
+    model ? null : "LLM_MODEL",
+  ].filter(Boolean) as string[];
+
+  if (missing.length > 0) {
+    throw new Error(
+      `LLM provider is not configured (missing ${missing.join(", ")}). ` +
+        "Set LLM_BASE_URL to an OpenAI-compatible base URL (for example " +
+        "https://api.deepseek.com/v1), plus LLM_API_KEY and LLM_MODEL."
+    );
   }
-  return cachedZai;
+
+  return {
+    endpoint: baseUrl.endsWith("/chat/completions")
+      ? baseUrl
+      : `${baseUrl}/chat/completions`,
+    apiKey,
+    model,
+  };
 }
 
 /** Run a chat completion and return the text content. Throws on empty. */
@@ -46,15 +77,36 @@ export async function chat(
   user: string,
   maxTokensHint = "be thorough but efficient"
 ): Promise<string> {
-  const zai = await getZai();
-  const completion = await zai.chat.completions.create({
-    messages: [
-      { role: "assistant", content: `${system}\n\n${maxTokensHint}` },
-      { role: "user", content: user },
-    ],
-    thinking: { type: "disabled" },
+  const { endpoint, apiKey, model } = llmConfig();
+
+  const messages: LlmMessage[] = [
+    { role: "system", content: `${system}\n\n${maxTokensHint}` },
+    { role: "user", content: user },
+  ];
+
+  const res = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({ model, messages }),
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    cache: "no-store",
   });
-  const text = completion.choices[0]?.message?.content?.trim();
+
+  if (!res.ok) {
+    const detail = (await res.text().catch(() => "")).trim().slice(0, 300);
+    throw new Error(
+      `LLM request failed (HTTP ${res.status})${detail ? `: ${detail}` : ""}`
+    );
+  }
+
+  const payload = (await res.json()) as {
+    choices?: { message?: { content?: unknown } }[];
+  };
+  const content = payload.choices?.[0]?.message?.content;
+  const text = typeof content === "string" ? content.trim() : "";
   if (!text) throw new Error("Empty response from model");
   return text;
 }
