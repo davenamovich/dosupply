@@ -26,8 +26,8 @@ const ICONS: Record<string, React.ElementType> = {
 };
 
 const PIPELINE = [
-  { label: "Your Archive", desc: "old CAD drawings, maintenance records, Slack, email" },
-  { label: "The Buyers", desc: "AI labs paying for real industrial ground truth" },
+  { label: "Your Network", desc: "customers, sellers — closed or still trading" },
+  { label: "The Labs", desc: "paying for introductions, not files" },
   { label: "The Introduction", desc: "you authorize — I open the door" },
   { label: "Referral Fees", desc: "paid to you, not a data sale" },
 ];
@@ -120,18 +120,20 @@ export default function EasterEgg() {
                 </div>
 
                 <h2 className="mt-4 text-3xl sm:text-4xl font-bold leading-tight text-white">
-                  YOU&apos;VE BUILT THE RELATIONSHIPS.
+                  YOUR CUSTOMERS AND YOUR SELLERS.
                   <br />
-                  <span className="text-teal-glow">NOW MONETIZE THE INTRODUCTIONS.</span>
+                  <span className="text-teal-glow">BOTH ARE WORTH AN INTRODUCTION.</span>
                 </h2>
 
                 <p className="mt-5 max-w-3xl text-sm leading-relaxed text-zinc-400">
-                  Years of trust with the people who actually run plants is the one thing
-                  AI labs cannot buy for themselves. Old CAD drawings, maintenance records,
-                  Slack threads and email archives are sitting on drives collecting dust,
-                  while those labs pay enormous referral fees for a path to exactly that
-                  material. This is not a data sale — it is an introduction. You authorize
-                  the access, the lab pays the referral, and the relationship stays yours.
+                  The asset is not a drive full of files — it is who you know. The plant
+                  managers and maintenance engineers who call DO Supply first, and the
+                  sellers and dealers on the other side of the trade, including the ones
+                  who have since closed their doors. Their part numbers, cross-references
+                  and hard-won know-how still matter, and AI labs pay enormous referral
+                  fees for an introduction to exactly that network. Nothing is sold: you
+                  authorize the introduction, the lab pays the referral, and the
+                  relationship stays yours.
                 </p>
 
                 {/* Pipeline */}
@@ -181,10 +183,11 @@ export default function EasterEgg() {
                   </div>
                   <p className="mt-2.5 text-xs leading-relaxed text-amber-100/80">
                     Nothing moves without verified ownership, written authorization and a
-                    clean paper trail. Customer names, pricing and anything under NDA stay
-                    out of scope; labs get licensed access, never the file. You approve
-                    every introduction, you can stop at any point, and the relationships
-                    they meet are yours — not mine.
+                    clean paper trail. Customers are asked before their name goes
+                    anywhere, and a closed seller&apos;s assets are only referenced where
+                    title is clear. Pricing, contracts and anything under NDA stay out of
+                    scope. You approve every introduction, you can stop at any point, and
+                    the relationships they meet are yours — not mine.
                   </p>
                 </div>
 
@@ -195,10 +198,12 @@ export default function EasterEgg() {
                 </h3>
 
                 <p className="mt-5 max-w-2xl border-l-2 border-teal-400/50 pl-4 text-sm italic leading-relaxed text-zinc-300">
-                  AI is not going away. You can let the data collect dust, or take the
-                  referral proceeds and put them back into operations — more inventory,
-                  more service, more reach. The only thing standing between those two
-                  futures is an introduction, and I can make it.
+                  AI is not going away, and those introductions are worth money whether
+                  you make them or not — the labs are already paying someone for them.
+                  Let the contact list collect dust, or take the referral proceeds and put
+                  them back into operations: more inventory, more service, more reach. The
+                  only thing between those two futures is an introduction, and I can make
+                  it.
                 </p>
                 <p className="mt-4 font-mono text-[10px] uppercase tracking-[0.22em] text-zinc-600">
                   — Dave · Founder, Plunder &amp; Riffle

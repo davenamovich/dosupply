@@ -285,33 +285,33 @@ export const ROADMAP_WEEKS = [
 
 export const DATA_MONETIZATION_OPPORTUNITIES = [
   {
-    title: "Legacy CAD Drawing Archives",
-    desc: "Decades of drawings, revisions and as-builts that labs cannot synthesize — licensed access, opened by introduction.",
+    title: "Customer Relationships",
+    desc: "Plant managers, maintenance engineers and OEMs who call DO Supply first — a warm path no lab can cold-call its way into.",
     icon: "database",
   },
   {
-    title: "Maintenance & Service Records",
-    desc: "Failure modes, repair histories and part swaps: the ground truth industrial models are starved for.",
+    title: "Seller & Dealer Network",
+    desc: "Suppliers, distributors and resellers on the other side of the trade — the people who actually know where legacy stock lives.",
     icon: "book",
   },
   {
-    title: "Slack Threads & Email Archives",
-    desc: "Real troubleshooting conversations — how problems actually get solved on a floor, permissioned before anyone sees them.",
+    title: "Closed-Seller Know-How",
+    desc: "Sellers who shut their doors still hold value: part numbers, cross-references and repair history worth an introduction.",
     icon: "layers",
   },
   {
-    title: "AI-Ready Industrial Ground Truth",
-    desc: "Machine-readable archives prepared for authorized training and retrieval, with provenance attached.",
-    icon: "cpu",
-  },
-  {
     title: "Introductions, Not Sales",
-    desc: "You authorize the relationship; the lab pays the referral fee. Nothing changes hands behind your back.",
+    desc: "You authorize the introduction; the lab pays the referral fee. Nothing changes hands behind your back.",
     icon: "handshake",
   },
   {
+    title: "AI-Ready Industrial Ground Truth",
+    desc: "The records behind the relationships — CAD drawings, maintenance history, Slack and email — offered only where you allow it.",
+    icon: "cpu",
+  },
+  {
     title: "Proceeds Fund Expansion",
-    desc: "Referral revenue goes back into inventory, service and reach — instead of dust collecting on a drive.",
+    desc: "Referral revenue goes back into inventory, service and reach, instead of gathering dust in an old contact list.",
     icon: "graduation",
   },
 ];

@@ -25,11 +25,11 @@ export default function FinalCta() {
 
         <div className="mx-auto mt-8 max-w-2xl space-y-5 text-left sm:text-center">
           <p className="leading-relaxed text-zinc-300">
-            &ldquo;AI labs are paying enormous referral fees for access to exactly the
-            kind of history a company like DO Supply already owns — old CAD drawings,
-            maintenance records, years of Slack threads and email. The material exists.
-            What the labs cannot get on their own is someone credible who will vouch
-            for it.
+            &ldquo;The asset is not the archive — it is who you know. The plant managers
+            and maintenance engineers who call DO Supply first, and the sellers and
+            dealers on the other side of the trade, including the ones who have since
+            closed. Labs building industrial AI are paying enormous referral fees for an
+            introduction to exactly that network.
           </p>
           <p className="leading-relaxed text-zinc-300">
             You&apos;ve built the relationships. Now it&apos;s time to monetize them: you
@@ -37,9 +37,10 @@ export default function FinalCta() {
             relationship stays yours.
           </p>
           <p className="leading-relaxed text-zinc-300">
-            AI is not going away. The only real choice is whether the archive collects
-            dust or the proceeds go back into operations — more inventory, more service,
-            more reach. I&apos;ll make the introductions.&rdquo;
+            AI is not going away, and those introductions have a price whether you make
+            them or not. Let the contact list collect dust, or put the referral proceeds
+            back into operations — more inventory, more service, more reach. I&apos;ll
+            make the introductions.&rdquo;
           </p>
         </div>
 
