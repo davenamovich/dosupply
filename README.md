@@ -82,6 +82,41 @@ The panel only ever returns masked previews. Saving a P&R key verifies it agains
 real auth-gated `tools/call` before storing it. Container filesystems are ephemeral, so on Railway
 prefer environment variables; the runtime file is for local or single-instance use.
 
+### Saving a key from the setup panel
+
+No screenshots needed — the tab has five controls.
+
+1. Open the app and select the **BYOK Setup** tab (the fifth tab, key icon).
+2. In **Setup passcode**, type the value of `ADMIN_PASSCODE`. Keep it filled in: every save and
+   clear reuses the same field.
+3. Paste the key into **Plunder & Riffle API key** (`pr_live_…`) or **Exa API key** (UUID). The eye
+   button toggles between dots and plain text so you can check what you pasted.
+4. Click **Save & verify**. It stays disabled until the passcode is non-empty and the key is longer
+   than 8 characters, so a greyed-out button means one of those is missing.
+5. Read the banner:
+   - P&R — `P&R key saved and verified against bot.plunderandriffle.com. Account: …` means the
+     engine was actually called with your key.
+   - Exa — `Exa key saved (ok). Research now runs through api.exa.ai.`
+6. The status card above the form flips to configured with a masked preview, and the key field
+   clears itself. Nothing ever renders the raw key back to the browser.
+
+What the banners mean when something goes wrong:
+
+| Banner | Cause |
+| --- | --- |
+| `Invalid setup passcode.` (HTTP 401) | `ADMIN_PASSCODE` is unset on the server, or the passcode is mistyped. There is no default value. |
+| `P&R key rejected by bot.plunderandriffle.com: … Nothing was saved.` | The key is invalid or revoked. The existing stored key is left untouched. |
+| `Saving the key failed.` | Network or server error; nothing changed. |
+
+Saving writes the **runtime store**, which takes precedence over the environment variable. The env
+var is not modified, so it becomes active again as soon as you clear the stored key.
+
+### Clearing a stored key
+
+Once a key is configured, a **Clear** button appears beside it. Clearing needs the same passcode and
+removes only the runtime entry: if `PLUNDER_RIFFLE_API_KEY` or `EXA_API_KEY` is also set, the app
+immediately falls back to that value.
+
 ## API routes
 
 | Route           | Method        | Notes                                                        |
