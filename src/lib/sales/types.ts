@@ -125,3 +125,10 @@ export type Lead = {
   updatedAfterAlert: boolean;
   source: "Website AI Sales Agent";
 };
+
+export type TelegramChat = {
+  id: string;
+  type: string;
+  title?: string;
+  connectedAt: string;
+};

@@ -148,6 +148,15 @@ after it has an email and a part requirement. Failed sends are retried (3 attemp
 later traffic or from the dashboard's *Retry now*), and the customer is only told the alert went out
 if Telegram confirmed delivery. With no credentials the alert is simulated and shown on the dashboard.
 
+**Connecting chats.** Telegram bots cannot create groups, but a bot learns a chat's ID when it is
+added or started. On the dashboard, press **Turn on auto-connect** (sets this bot's webhook to
+`/api/telegram/webhook`, protected by a secret header), then use **Add bot to a group** or
+**Start a private chat**. The link carries a connect code derived from the bot token, so only
+someone with dashboard access can subscribe a chat. Use a bot that is only for these alerts: a bot
+has one webhook. `/stop` unsubscribes, and removing the bot or upgrading a group is handled.
+Alerts go to every connected chat plus `TELEGRAM_CHAT_ID` if set. **Send test alert** reports what
+is wrong in plain words. Test without Telegram: `bun run tests/telegram-connect.ts`.
+
 **Inventory.** Providers are tried in order: `DOSUPPLY_CATALOG_API_URL` (live; the only one treated
 as verified), a database hook, `INVENTORY_CSV_PATH`, then built-in **DEMO DATA**. Prices, quantities
 and compatibility are never invented; the demo catalog carries no prices.

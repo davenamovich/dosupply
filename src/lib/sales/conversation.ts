@@ -191,6 +191,6 @@ async function persist(s: Session) {
   });
 }
 
-export function alertMode(): "telegram" | "simulated" {
-  return telegramConfigured() ? "telegram" : "simulated";
+export async function alertMode(): Promise<"telegram" | "simulated"> {
+  return (await telegramConfigured()) ? "telegram" : "simulated";
 }

@@ -7,7 +7,7 @@ import { STARTERS } from "@/lib/sales/engine";
 export const dynamic = "force-dynamic";
 
 const MAX_LEN = 1500;
-const modes = () => ({ inventory: inventoryMode(), alerts: alertMode() });
+const modes = async () => ({ inventory: inventoryMode(), alerts: await alertMode() });
 
 /** Start a session (or restore one) and return the transcript so far. */
 export async function GET(req: NextRequest) {
@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
     messages: session.messages,
     starters: STARTERS,
     leadId: session.leadId,
-    mode: modes(),
+    mode: await modes(),
   });
 }
 
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
   }
   try {
     const out = await processMessage(typeof body.sessionId === "string" ? body.sessionId : undefined, message);
-    return NextResponse.json({ ...out, mode: modes() });
+    return NextResponse.json({ ...out, mode: await modes() });
   } catch (err) {
     console.error("[sales/chat] failed:", err);
     return NextResponse.json({ error: "Something went wrong on our side. Please try again." }, { status: 500 });
