@@ -39,7 +39,9 @@ export default function Dashboard() {
   const [mode, setMode] = useState<Mode | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [passcode, setPasscode] = useState("");
-  const [locked, setLocked] = useState<false | "needs" | "wrong">(false);
+  const [role, setRole] = useState<"admin" | "public">("public");
+  const [wrong, setWrong] = useState(false);
+  const [signingIn, setSigningIn] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -52,13 +54,24 @@ export default function Dashboard() {
     async (code: string) => {
       const res = await fetch("/api/sales/leads", { headers: headers(code), cache: "no-store" });
       if (res.status === 401) {
-        const body = await res.json().catch(() => ({}));
-        setLocked(code ? "wrong" : body.needsPasscode ? "needs" : "needs");
+        // A wrong passcode: forget it and fall back to the public view.
+        sessionStorage.removeItem(PASS_KEY);
+        setPasscode("");
+        setWrong(true);
+        const pub = await fetch("/api/sales/leads", { cache: "no-store" });
+        if (pub.ok) {
+          const data = await pub.json();
+          setRole(data.role);
+          setLeads(data.leads);
+          setMode(data.mode);
+          setSelectedId((cur) => cur ?? data.leads[0]?.id ?? null);
+        }
         setLoaded(true);
         return;
       }
       const data = await res.json();
-      setLocked(false);
+      setWrong(false);
+      setRole(data.role);
       setLeads(data.leads);
       setMode(data.mode);
       setSelectedId((cur) => cur ?? data.leads[0]?.id ?? null);
@@ -75,10 +88,9 @@ export default function Dashboard() {
   }, [load]);
 
   useEffect(() => {
-    if (locked) return;
     const t = setInterval(() => load(passcode).catch(() => {}), 5000);
     return () => clearInterval(t);
-  }, [load, locked, passcode]);
+  }, [load, passcode]);
 
   const patch = async (id: string, body: { status?: LeadStatus; retryAlert?: boolean }) => {
     setBusy(true);
@@ -92,35 +104,6 @@ export default function Dashboard() {
   };
 
   const selected = leads.find((l) => l.id === selectedId) || null;
-
-  if (locked) {
-    return (
-      <div className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-4 px-4">
-        <Brand />
-        <h1 className="text-lg font-semibold">Sales dashboard</h1>
-        <p className="text-sm text-zinc-300">
-          {locked === "wrong" ? "That passcode didn't work." : "Enter the dashboard passcode to view leads."}
-        </p>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            sessionStorage.setItem(PASS_KEY, passcode);
-            load(passcode);
-          }}
-          className="flex gap-2"
-        >
-          <input
-            type="password"
-            value={passcode}
-            onChange={(e) => setPasscode(e.target.value)}
-            className="min-w-0 flex-1 rounded-full border border-white/10 bg-[#12151b] px-4 py-2 text-sm outline-none focus:border-amber-400/60"
-            placeholder="Passcode"
-          />
-          <button className="rounded-full bg-teal-400 px-4 py-2 text-sm font-bold text-black">Unlock</button>
-        </form>
-      </div>
-    );
-  }
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6">
@@ -140,13 +123,51 @@ export default function Dashboard() {
           <a href={ALERT_GROUP_URL} target="_blank" rel="noreferrer" className="font-semibold text-teal-300 hover:underline">
             Join alert group
           </a>
+          {role === "admin" ? (
+            <span className="rounded-full border border-teal-400/40 bg-teal-400/10 px-3 py-1 font-semibold text-teal-200">Admin</span>
+          ) : (
+            <button onClick={() => setSigningIn((v) => !v)} className="font-semibold text-zinc-300 hover:text-amber-300">
+              Admin sign-in
+            </button>
+          )}
           <a href="/sales-agent" className="font-semibold text-amber-300 hover:underline">
             ← Back to chat
           </a>
         </div>
       </header>
 
-      {loaded && <TelegramPanel passcode={passcode} />}
+      {role === "public" && (
+        <div className="mb-5 rounded-xl border border-white/10 bg-[#12151b] px-4 py-3 text-xs text-zinc-300">
+          <p>
+            <b className="text-zinc-100">Public demo view.</b> Emails and phone numbers are hidden. Everything else, including the
+            full conversation and the Telegram alert, is shown as it happened.
+          </p>
+          {(signingIn || wrong) && (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                sessionStorage.setItem(PASS_KEY, passcode);
+                setWrong(false);
+                load(passcode);
+              }}
+              className="mt-3 flex max-w-sm gap-2"
+            >
+              <input
+                type="password"
+                value={passcode}
+                onChange={(e) => setPasscode(e.target.value)}
+                className="min-w-0 flex-1 rounded-full border border-white/10 bg-black/30 px-4 py-1.5 text-sm outline-none focus:border-amber-400/60"
+                placeholder="Admin passcode"
+                autoFocus
+              />
+              <button className="rounded-full bg-teal-400 px-4 py-1.5 text-sm font-bold text-black">Unlock</button>
+            </form>
+          )}
+          {wrong && <p className="mt-2 text-rose-300">That passcode didn&apos;t work.</p>}
+        </div>
+      )}
+
+      {loaded && role === "admin" && <TelegramPanel passcode={passcode} />}
 
       {!loaded ? (
         <p className="text-sm text-zinc-400">Loading…</p>
@@ -192,7 +213,7 @@ export default function Dashboard() {
             ))}
           </ul>
 
-          {selected && <Detail lead={selected} busy={busy} onPatch={(b) => patch(selected.id, b)} />}
+          {selected && <Detail lead={selected} busy={busy} canEdit={role === "admin"} onPatch={(b) => patch(selected.id, b)} />}
         </div>
       )}
     </div>
@@ -202,10 +223,12 @@ export default function Dashboard() {
 function Detail({
   lead,
   busy,
+  canEdit,
   onPatch,
 }: {
   lead: Lead;
   busy: boolean;
+  canEdit: boolean;
   onPatch: (b: { status?: LeadStatus; retryAlert?: boolean }) => void;
 }) {
   const alert = ALERT_STYLE[lead.telegram.status];
@@ -225,7 +248,7 @@ function Detail({
             <select
               id="status"
               value={lead.status}
-              disabled={busy}
+              disabled={busy || !canEdit}
               onChange={(e) => onPatch({ status: e.target.value as LeadStatus })}
               className="rounded-full border border-white/10 bg-[#12151b] px-3 py-1.5 text-sm font-medium outline-none focus:border-amber-400/60"
             >
@@ -292,7 +315,7 @@ function Detail({
           <h3 className="text-sm font-semibold">Telegram alert</h3>
           <div className="flex items-center gap-2">
             <span className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${alert.cls}`}>{alert.label}</span>
-            {lead.telegram.status === "failed" && (
+            {canEdit && lead.telegram.status === "failed" && (
               <button
                 disabled={busy}
                 onClick={() => onPatch({ retryAlert: true })}

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { callMcpTool, mcpKeyConfigured, mcpUrl } from "@/lib/mcp/client";
 import { engineBrand } from "@/lib/mcp/brand";
+import { pickVerticalCreative } from "@/lib/vertical-creative";
 import { BUSY_RESPONSE, clientIp, globalLimit, rateLimit } from "@/lib/ai";
 import { bumpStat } from "@/lib/session-stats";
 
@@ -105,7 +106,9 @@ export async function POST(req: NextRequest) {
         offer,
         format,
         brand: engineBrand(),
-        includeAssets: true,
+        // Page only: the studio phone shows the engine's page, so skip rendering
+        // the PNG sizes. They are free to fetch later via /api/mcp/assets.
+        includeAssets: false,
       });
 
   if (
@@ -121,7 +124,7 @@ export async function POST(req: NextRequest) {
       offer,
       format,
       brand: engineBrand(),
-      includeAssets: true,
+      includeAssets: false,
     });
   }
 
@@ -157,6 +160,7 @@ export async function POST(req: NextRequest) {
     pageUrl: data.pageUrl ?? null,
     mediaUrl: typeof data.media_url === "string" ? data.media_url : null,
     adAssets: data.adAssets ?? null,
+    vertical: pickVerticalCreative(data),
     postCopy: data.post_copy ?? null,
     creatives: Array.isArray(data.creatives) ? data.creatives : null,
     copy: data.copy ?? null,
