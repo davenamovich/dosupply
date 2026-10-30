@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { Clapperboard, ImageIcon, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { FitImage, FitVideo } from "./fit-media";
 
 export type PhoneContent =
   | { kind: "video"; src: string; label?: string }
@@ -102,29 +103,21 @@ export default function PhonePlayer({
                 referrerPolicy="no-referrer"
               />
             ) : content.kind === "video" ? (
-              <video
-                key={content.src}
-                ref={videoRef}
+              <FitVideo
                 src={`/api/mcp/media?url=${encodeURIComponent(content.src)}`}
-                className="h-full w-full object-contain"
-                controls
-                autoPlay
-                muted
-                loop
-                playsInline
-                preload="metadata"
-                aria-label={label ?? "Generated P&R video playing in phone"}
+                videoRef={videoRef}
+                label={label ?? "Generated P&R video playing in phone"}
               />
             ) : (
               <div className="relative h-full w-full">
-                <img
-                  key={content.src}
+                <FitImage
                   /* Same proxy as video: the engine 302s creatives to a signed
-                     R2 URL, which the browser cannot hotlink reliably. */
+                     R2 URL, which the browser cannot hotlink reliably. The
+                     engine's PNGs carry their own phone bezel; FitImage crops
+                     to the real screen so it isn't a phone inside a phone. */
                   src={`/api/mcp/media?url=${encodeURIComponent(content.src)}`}
                   alt={label ?? "Generated P&R creative shown in phone"}
                   className="h-full w-full object-cover"
-                  loading="eager"
                 />
                 {content.label && (
                   <span className="absolute bottom-2 left-2 rounded bg-black/70 px-1.5 py-0.5 font-mono text-[9px] uppercase text-zinc-200">

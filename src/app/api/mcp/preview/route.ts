@@ -36,6 +36,24 @@ function isAllowedUrl(raw: string): URL | null {
   }
 }
 
+/** Removes the page's own phone shell so it fills whatever frame embeds it. */
+const FIT_TO_PHONE_CSS = `<style data-fit-to-phone>
+html, html body { width: 100% !important; height: 100% !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; display: block !important; }
+html body .iphone-frame.iphone-frame.iphone-frame {
+  width: 100% !important; height: 100% !important; max-width: none !important; max-height: none !important;
+  aspect-ratio: auto !important; margin: 0 !important; padding: 0 !important;
+  border-radius: 0 !important; box-shadow: none !important; background: #000 !important;
+}
+html body .iphone-notch.iphone-notch.iphone-notch { display: none !important; }
+html body .iphone-screen.iphone-screen.iphone-screen { width: 100% !important; height: 100% !important; border-radius: 0 !important; }
+html body .meme-stage.meme-stage.meme-stage {
+  width: 100% !important; height: 100% !important; max-width: none !important; max-height: none !important;
+  aspect-ratio: auto !important; border-radius: 0 !important; box-shadow: none !important;
+}
+html body .meme-stage video, html body .meme-stage .meme-bg { width: 100% !important; height: 100% !important; object-fit: cover !important; }
+html body .action-bar { display: none !important; }
+</style>`;
+
 function jsonError(error: string, status: number) {
   return NextResponse.json({ error }, { status });
 }
@@ -98,6 +116,14 @@ export async function GET(req: NextRequest) {
   } else {
     out = `${baseTag}\n${html}`;
   }
+
+  // The engine's pages draw their own iPhone bezel, which would nest a phone
+  // inside the studio phone. Strip the shell so the page fills the screen,
+  // injected last (and repeated-class specific) so it beats the page's own
+  // `.record-mode`/media-query rules.
+  out = /<\/head>/i.test(out)
+    ? out.replace(/<\/head>/i, `${FIT_TO_PHONE_CSS}\n</head>`)
+    : `${out}\n${FIT_TO_PHONE_CSS}`;
 
   return new NextResponse(out, {
     status: 200,

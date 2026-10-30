@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -148,6 +148,54 @@ function pickVerticalCreative(
   });
   const pick = explicit ?? byRatio;
   return pick ? { url: pick.url, label: "9:16 creative" } : null;
+}
+
+/** Find a rendered video (mp4/webm/mov) anywhere in an MCP payload, if the run produced one. */
+function pickVideo(result: Record<string, unknown>): string | null {
+  const VID = /\.(mp4|webm|mov)(\?\S*)?$/i;
+  const walk = (v: unknown, depth: number): string | null => {
+    if (depth > 8) return null;
+    if (typeof v === "string") {
+      if (/^https:\/\/\S+/i.test(v) && VID.test(v)) return v;
+      if (/^[\[{]/.test(v.trim()) && v.includes("http")) {
+        try {
+          return walk(JSON.parse(v), depth + 1);
+        } catch {
+          return null;
+        }
+      }
+      return null;
+    }
+    if (Array.isArray(v)) {
+      for (const x of v) {
+        const hit = walk(x, depth + 1);
+        if (hit) return hit;
+      }
+      return null;
+    }
+    if (v && typeof v === "object") {
+      for (const x of Object.values(v as Record<string, unknown>)) {
+        const hit = walk(x, depth + 1);
+        if (hit) return hit;
+      }
+    }
+    return null;
+  };
+  return walk(result, 0);
+}
+
+/**
+ * What the studio phone should show for a creative run: a video when the run
+ * produced one, else the 9:16 cut, else the engine's rendered page (which the
+ * preview proxy fits to the phone screen).
+ */
+function pickPhoneContent(result: Record<string, unknown>, pageUrls: string[]): PhoneContent | null {
+  const video = pickVideo(result);
+  if (video) return { kind: "video", src: video, label: "P&R creative · video" };
+  const vertical = pickVerticalCreative(result);
+  if (vertical) return { kind: "image", src: vertical.url, label: vertical.label };
+  if (pageUrls[0]) return { kind: "page", src: pageUrls[0], label: "P&R creative · rendered page" };
+  return null;
 }
 
 function stringifyPayload(v: unknown): string {
@@ -450,13 +498,16 @@ function CreativeTab({
   const pageUrls = result ? collectPageUrls(result) : [];
   const vertical = result ? pickVerticalCreative(result) : null;
 
-  /* Deliver the vertical cut to the studio phone as soon as a run lands. */
+  /* Deliver to the studio phone as soon as a run lands: video first, then the
+     9:16 cut, then the rendered page. */
   const lastPhoneRef = useRef<string | null>(null);
+  const phoneContent = result ? pickPhoneContent(result, pageUrls) : null;
+  const phoneSrc = phoneContent && "src" in phoneContent ? phoneContent.src : null;
   useEffect(() => {
-    if (!vertical || lastPhoneRef.current === vertical.url) return;
-    lastPhoneRef.current = vertical.url;
-    loadStudioPhone({ kind: "image", src: vertical.url, label: vertical.label });
-  }, [vertical?.url, vertical?.label]);
+    if (!phoneContent || !phoneSrc || lastPhoneRef.current === phoneSrc) return;
+    lastPhoneRef.current = phoneSrc;
+    loadStudioPhone(phoneContent);
+  }, [phoneSrc]);
 
   return (
     <div className="panel rounded-2xl p-5 sm:p-6">
@@ -565,8 +616,8 @@ function CreativeTab({
           {pageUrls.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-2">
               {pageUrls.slice(0, 3).map((u, i) => (
+                <Fragment key={i}>
                 <a
-                  key={i}
                   href={u}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -574,6 +625,14 @@ function CreativeTab({
                 >
                   <ExternalLink className="h-3 w-3" /> Temp-page preview {pageUrls.length > 1 ? i + 1 : ""}
                 </a>
+                <button
+                  onClick={() => loadStudioPhone({ kind: "page", src: u, label: "P&R creative · rendered page" })}
+                  className="rounded-lg border border-teal-400/50 bg-black/40 px-2.5 py-1 font-mono text-[9px] uppercase tracking-wider text-teal-200 transition-colors hover:bg-black"
+                  aria-label="Show this rendered page in the studio phone"
+                >
+                  Show in phone
+                </button>
+                </Fragment>
               ))}
             </div>
           )}
@@ -631,13 +690,16 @@ function MultilangTab({ mcpLive }: { mcpLive: boolean }) {
   const pageUrls = result ? collectPageUrls(result) : [];
   const vertical = result ? pickVerticalCreative(result) : null;
 
-  /* Deliver the vertical cut to the studio phone as soon as a batch lands. */
+  /* Deliver to the studio phone as soon as a batch lands: video first, then
+     the 9:16 cut, then the rendered page. */
   const lastPhoneRef = useRef<string | null>(null);
+  const phoneContent = result ? pickPhoneContent(result, pageUrls) : null;
+  const phoneSrc = phoneContent && "src" in phoneContent ? phoneContent.src : null;
   useEffect(() => {
-    if (!vertical || lastPhoneRef.current === vertical.url) return;
-    lastPhoneRef.current = vertical.url;
-    loadStudioPhone({ kind: "image", src: vertical.url, label: vertical.label });
-  }, [vertical?.url, vertical?.label]);
+    if (!phoneContent || !phoneSrc || lastPhoneRef.current === phoneSrc) return;
+    lastPhoneRef.current = phoneSrc;
+    loadStudioPhone(phoneContent);
+  }, [phoneSrc]);
 
   return (
     <div className="panel rounded-2xl p-5 sm:p-6">
@@ -755,8 +817,8 @@ function MultilangTab({ mcpLive }: { mcpLive: boolean }) {
           {pageUrls.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-2">
               {pageUrls.slice(0, 6).map((u, i) => (
+                <Fragment key={i}>
                 <a
-                  key={i}
                   href={u}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -764,6 +826,14 @@ function MultilangTab({ mcpLive }: { mcpLive: boolean }) {
                 >
                   <ExternalLink className="h-3 w-3" /> Preview {i + 1}
                 </a>
+                <button
+                  onClick={() => loadStudioPhone({ kind: "page", src: u, label: "P&R creative · rendered page" })}
+                  className="rounded-lg border border-teal-400/50 bg-black/40 px-2.5 py-1 font-mono text-[9px] uppercase tracking-wider text-teal-200 transition-colors hover:bg-black"
+                  aria-label="Show this rendered page in the studio phone"
+                >
+                  Show in phone
+                </button>
+                </Fragment>
               ))}
             </div>
           )}
