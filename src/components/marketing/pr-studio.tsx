@@ -94,22 +94,48 @@ function pickVerticalCreative(
   result: Record<string, unknown>
 ): { url: string; label: string } | null {
   const found: { url: string; hint: string }[] = [];
+  const IMG = /\.(png|jpe?g|webp|gif)(\?\S*)?$/i;
+  const has = (u: string) => found.some((f) => f.url === u);
+
+  /* Shapes differ per tool: adAssets use `url`, multilang may use `image`,
+     `imageUrl` or a bare string in an array. Accept all of them. */
+  const pickUrl = (o: Record<string, unknown>): string | null => {
+    for (const k of ["url", "imageUrl", "image_url", "media_url", "image", "src", "asset"]) {
+      const v = o[k];
+      if (typeof v === "string" && /^https:\/\//i.test(v) && IMG.test(v)) return v;
+    }
+    return null;
+  };
+
   const walk = (v: unknown, depth: number) => {
-    if (depth > 8 || !v) return;
+    if (depth > 8) return;
+    if (typeof v === "string") {
+      if (/^https:\/\/\S+/i.test(v) && IMG.test(v) && !has(v)) found.push({ url: v, hint: "" });
+      // Some tools return their payload as a JSON *string* rather than an object.
+      else if (/^[\[{]/.test(v.trim()) && v.includes("http")) {
+        try {
+          walk(JSON.parse(v), depth + 1);
+        } catch {
+          /* not JSON — ignore */
+        }
+      }
+      return;
+    }
     if (Array.isArray(v)) {
       for (const x of v) walk(x, depth + 1);
       return;
     }
-    if (typeof v !== "object") return;
+    if (!v || typeof v !== "object") return;
     const o = v as Record<string, unknown>;
-    if (typeof o.url === "string" && /^https:\/\/\S+\.(png|jpe?g|webp)(\?\S*)?$/i.test(o.url)) {
+    const url = pickUrl(o);
+    if (url && !has(url)) {
       const w = typeof o.width === "number" ? o.width : null;
       const h = typeof o.height === "number" ? o.height : null;
-      const hint = [o.format, o.label, o.size, o.aspect]
+      const hint = [o.format, o.label, o.size, o.aspect, o.ratio, o.language]
         .filter((x): x is string => typeof x === "string")
         .join(" ")
         .toLowerCase();
-      found.push({ url: o.url, hint: w && h ? `${hint} ${w}x${h}` : hint });
+      found.push({ url, hint: w && h ? `${hint} ${w}x${h}` : hint });
     }
     for (const x of Object.values(o)) walk(x, depth + 1);
   };
