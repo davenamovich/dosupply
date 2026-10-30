@@ -114,12 +114,17 @@ export async function callMcpTool<T = unknown>(
     }
 
     if (!res.ok) {
-      // Read the body even on failure so proxies' HTML error pages don't
-      // matter — we report the status code cleanly.
+      // Consume the body so the connection is released, and detect gateway
+      // HTML error pages (timeout on a long generation) so every failure path
+      // reports the same honest, approved message instead of a terse code.
+      const raw = await res.text().catch(() => "");
+      const looksHtml = /^\s*<(?:!doctype|html)/i.test(raw);
       return {
         ok: false,
         code: "network",
-        error: `P&R MCP returned HTTP ${res.status}.`,
+        error: looksHtml
+          ? `The server returned an HTML error page (HTTP ${res.status}) instead of JSON — usually a temporary gateway timeout on a long generation, or a transient proxy error. Nothing was generated; please try again in a moment.`
+          : `P&R MCP returned HTTP ${res.status}. Nothing was generated; please try again in a moment.`,
       };
     }
 
