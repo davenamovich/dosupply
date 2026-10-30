@@ -10,6 +10,9 @@ export async function GET() {
     keyStatus("plunder_riffle"),
     keyStatus("exa"),
   ]);
+  const fallbackResearchConfigured = Boolean(
+    (process.env.TINYFISH_API_KEY || "").trim()
+  );
   return NextResponse.json({
     mcp: {
       keyConfigured: status.keyConfigured,
@@ -30,7 +33,11 @@ export async function GET() {
         source: exaKey.source,
       },
     },
-    researchProvider: exaKey.configured ? "exa" : "sdk_web_search",
+    researchProvider: exaKey.configured
+      ? "exa"
+      : fallbackResearchConfigured
+        ? "tinyfish"
+        : "none",
     endpoint: mcpUrl(),
     checkedAt: status.checkedAt,
   });

@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import ZAI from "z-ai-web-dev-sdk";
 import { resolveKey, keyStatus } from "@/lib/runtime-keys";
 import { rateLimit } from "@/lib/ai";
 
@@ -24,9 +23,26 @@ type ExaResponse = {
   }[];
 };
 
+type TinyFishResponse = {
+  results?: {
+    title?: string;
+    url?: string;
+    snippet?: string;
+    site_name?: string;
+  }[];
+};
+
+/** Env-configured fallback search endpoint (TinyFish: free tier, REST + X-API-Key). */
+function tinyfishConfig(): { endpoint: string; apiKey: string } | null {
+  const apiKey = (process.env.TINYFISH_API_KEY || "").trim();
+  if (!apiKey) return null;
+  const endpoint = (process.env.TINYFISH_SEARCH_URL || "").trim() || "https://api.search.tinyfish.ai";
+  return { endpoint, apiKey };
+}
+
 /**
  * POST /api/research — live web research for content grounding.
- * Provider order: Exa (BYOK key) → built-in SDK web_search.
+ * Provider order: Exa (BYOK key) → TinyFish (TINYFISH_API_KEY).
  * The response names the provider that actually ran, so the UI can label
  * provenance honestly.
  */
@@ -82,7 +98,7 @@ export async function POST(req: NextRequest) {
           .filter((r) => r.url);
         return NextResponse.json({ provider: "exa", query, results });
       }
-      // 401/403 → report honestly, fall through to SDK search.
+      // 401/403 → report honestly, fall through to the fallback provider.
       if (res.status === 401 || res.status === 403) {
         return NextResponse.json(
           {
@@ -96,32 +112,57 @@ export async function POST(req: NextRequest) {
       }
     } catch (err) {
       console.error("[research] exa failed:", err);
-      // fall through to SDK search
+      // fall through to the fallback provider
     }
   }
 
-  // --- Provider 2: built-in SDK web_search (always available in this sandbox) ---
-  try {
-    const zai = await ZAI.create();
-    const result = await zai.functions.invoke("web_search", { query, num });
-    const results: ResearchResult[] = (result || [])
-      .slice(0, num)
-      .map((r) => ({
-        title: r.name || r.url,
-        url: r.url,
-        snippet: (r.snippet || "").trim(),
-        host: r.host_name || safeHost(r.url),
-        date: r.date || undefined,
-      }))
-      .filter((r) => r.url);
-    return NextResponse.json({ provider: "sdk_web_search", query, results });
-  } catch (err) {
-    console.error("[research] sdk web_search failed:", err);
+  // --- Provider 2: TinyFish search (env TINYFISH_API_KEY) ---
+  const fallback = tinyfishConfig();
+  if (!fallback) {
     return NextResponse.json(
       {
         provider: "none",
         error:
-          "Both Exa (BYOK) and the built-in web search failed. No research grounding is available right now.",
+          "No research provider is configured. Paste an Exa key in the setup panel or set TINYFISH_API_KEY.",
+        results: [],
+      },
+      { status: 502 }
+    );
+  }
+
+  try {
+    const endpoint = new URL(fallback.endpoint);
+    endpoint.searchParams.set("query", query);
+    const res = await fetch(endpoint.toString(), {
+      method: "GET",
+      headers: { "X-API-Key": fallback.apiKey },
+      cache: "no-store",
+      signal: AbortSignal.timeout(30_000),
+    });
+    if (!res.ok) {
+      const detail = (await res.text().catch(() => "")).trim().slice(0, 200);
+      throw new Error(
+        `TinyFish search failed (HTTP ${res.status})${detail ? `: ${detail}` : ""}`
+      );
+    }
+    const payload = (await res.json()) as TinyFishResponse;
+    const results: ResearchResult[] = (payload.results || [])
+      .slice(0, num)
+      .map((r) => ({
+        title: r.title || r.url || "Untitled result",
+        url: r.url || "",
+        snippet: (r.snippet || "").trim().slice(0, 600),
+        host: r.site_name || safeHost(r.url || ""),
+      }))
+      .filter((r) => r.url);
+    return NextResponse.json({ provider: "tinyfish", query, results });
+  } catch (err) {
+    console.error("[research] tinyfish search failed:", err);
+    return NextResponse.json(
+      {
+        provider: "none",
+        error:
+          "Both Exa (BYOK) and the fallback web search failed. No research grounding is available right now.",
         results: [],
       },
       { status: 502 }
@@ -132,9 +173,11 @@ export async function POST(req: NextRequest) {
 /** GET — which provider is currently active (for the UI badge). */
 export async function GET() {
   const exa = await keyStatus("exa");
+  const provider = exa.configured ? "exa" : tinyfishConfig() ? "tinyfish" : "none";
   return NextResponse.json({
-    provider: exa.configured ? "exa" : "sdk_web_search",
+    provider,
     exaConfigured: exa.configured,
+    fallbackConfigured: tinyfishConfig() !== null,
   });
 }
 

@@ -119,7 +119,12 @@ export default function ModuleSeo() {
           </Button>
           {researchProvider && (
             <p className="font-mono text-[10px] text-zinc-500">
-              research provider: {researchProvider === "exa" ? "exa.ai (BYOK)" : "built-in web search"}
+              research provider:{" "}
+              {researchProvider === "exa"
+                ? "exa.ai (BYOK)"
+                : researchProvider === "tinyfish"
+                  ? "tinyfish search"
+                  : "unavailable"}
             </p>
           )}
           {researchError && (
