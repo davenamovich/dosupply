@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { callMcpTool } from "@/lib/mcp/client";
+import { engineBrand } from "@/lib/mcp/brand";
 import { rateLimit } from "@/lib/ai";
 import { bumpStat } from "@/lib/session-stats";
 
@@ -79,6 +80,7 @@ export async function POST(req: NextRequest) {
       languages,
       format,
       offer,
+      brand: engineBrand(),
       includeAssets: true,
     },
     240_000

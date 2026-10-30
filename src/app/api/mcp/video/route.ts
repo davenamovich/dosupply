@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { callMcpTool, mcpKeyConfigured } from "@/lib/mcp/client";
+import { videoLook } from "@/lib/mcp/brand";
 import { rateLimit } from "@/lib/ai";
 import { bumpStat } from "@/lib/session-stats";
 
@@ -67,6 +68,7 @@ export async function POST(req: NextRequest) {
     {
       topic,
       shape,
+      ...videoLook(topic),
       title: (body.title || "DO Supply × Plunder & Riffle").slice(0, 120),
     },
     120_000

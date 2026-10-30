@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { callMcpTool, mcpKeyConfigured, mcpUrl } from "@/lib/mcp/client";
+import { engineBrand } from "@/lib/mcp/brand";
 import { rateLimit } from "@/lib/ai";
 import { bumpStat } from "@/lib/session-stats";
 
@@ -92,6 +93,7 @@ export async function POST(req: NextRequest) {
           body.direction ||
           "for maintenance teams and plant managers who need parts NOW",
         creatives: [format],
+        brand: engineBrand(),
         includeAssets: true,
       })
     : await callMcpTool<CreativeResult>("generate_ad_creative", {
@@ -99,6 +101,7 @@ export async function POST(req: NextRequest) {
         audience: "plant managers and maintenance engineers — expert, plain-spoken, need-it-now energy",
         offer,
         format,
+        brand: engineBrand(),
         includeAssets: true,
       });
 
@@ -114,6 +117,7 @@ export async function POST(req: NextRequest) {
       audience: "plant managers and maintenance engineers — expert, plain-spoken, need-it-now energy",
       offer,
       format,
+      brand: engineBrand(),
       includeAssets: true,
     });
   }
