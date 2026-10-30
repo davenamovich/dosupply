@@ -7,7 +7,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { MultiplierOutput } from "@/app/api/generate/route";
 import { postJson, ProvenanceBadge, McpStatusPill } from "./shared";
 import { motion } from "framer-motion";
-import { Zap, RefreshCw, Terminal } from "lucide-react";
+import {
+  Zap,
+  RefreshCw,
+  Terminal,
+  Clapperboard,
+  Image as ImageIcon,
+} from "lucide-react";
 
 /**
  * Live Demonstration — one product in, one full 10-format marketing package
@@ -20,6 +26,36 @@ export default function LiveDemo() {
   const [pkgLoading, setPkgLoading] = useState(false);
   const [pkg, setPkg] = useState<MultiplierOutput | null>(null);
   const [pkgError, setPkgError] = useState<string | null>(null);
+
+  /* Console quick-create — real P&R jobs, delivered to the studio phone. */
+  const [command, setCommand] = useState("");
+  const [consoleLines, setConsoleLines] = useState<string[]>([]);
+
+  function pushLine(line: string) {
+    setConsoleLines((prev) => [...prev.slice(-2), line]);
+  }
+
+  function quickCreate(kind: "video" | "meme") {
+    const topic = command.trim();
+    if (!topic) return;
+    if (kind === "video") {
+      window.dispatchEvent(
+        new CustomEvent("pr-studio:quick-video", { detail: { topic } })
+      );
+      pushLine(`> pnr video "${topic.slice(0, 64)}" — job dispatched, rendering…`);
+    } else {
+      window.dispatchEvent(
+        new CustomEvent("pr-studio:quick-creative", { detail: { input: topic } })
+      );
+      pushLine(`> pnr meme "${topic.slice(0, 64)}" — job dispatched, rendering…`);
+    }
+    setCommand("");
+    window.setTimeout(() => {
+      document
+        .getElementById("pr-studio")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 120);
+  }
 
   async function generatePackage() {
     setPkgLoading(true);
@@ -97,6 +133,58 @@ export default function LiveDemo() {
               </a>
               .
             </p>
+
+            {/* Console quick-create — content creation straight from the console */}
+            <div className="mt-4 rounded-lg border border-white/10 bg-black/50 p-3">
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <div className="flex flex-1 items-center gap-2 rounded-md border border-white/10 bg-black/60 px-3">
+                  <span className="font-mono text-xs font-bold text-teal-300">pnr&gt;</span>
+                  <input
+                    value={command}
+                    onChange={(e) => setCommand(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") quickCreate("video");
+                    }}
+                    placeholder='create content — e.g. "PowerFlex 525 drives restocked"'
+                    aria-label="P&R console command"
+                    className="h-9 min-w-0 flex-1 bg-transparent font-mono text-xs text-zinc-200 outline-none placeholder:text-zinc-600"
+                  />
+                </div>
+                <div className="flex shrink-0 gap-2">
+                  <Button
+                    size="sm"
+                    disabled={!command.trim()}
+                    onClick={() => quickCreate("video")}
+                    className="h-9 bg-teal-400 font-bold text-black hover:bg-teal-300"
+                  >
+                    <Clapperboard className="h-3.5 w-3.5" />
+                    <span className="ml-1.5">video</span>
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={!command.trim()}
+                    onClick={() => quickCreate("meme")}
+                    className="h-9 border-white/15 bg-white/5 hover:bg-white/10"
+                  >
+                    <ImageIcon className="h-3.5 w-3.5 text-teal-200" />
+                    <span className="ml-1.5 font-mono text-xs text-teal-200">meme</span>
+                  </Button>
+                </div>
+              </div>
+              {consoleLines.map((l, i) => (
+                <p
+                  key={`${i}-${l}`}
+                  className="mt-2 truncate font-mono text-[10px] text-teal-200/70"
+                >
+                  {l}
+                </p>
+              ))}
+              <p className="mt-1.5 font-mono text-[9px] uppercase tracking-widest text-zinc-600">
+                console commands run the real P&amp;R engine · output lands in the
+                studio phone
+              </p>
+            </div>
           </div>
         </div>
 

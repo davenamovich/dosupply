@@ -313,6 +313,26 @@ export default function PrStudio() {
               <SetupTab keys={keys} refreshKeys={refreshKeys} />
             </TabsContent>
           </Tabs>
+
+          {/* The delivery phone — engine assets play here, no click-away. */}
+          <aside
+            ref={phoneRailRef}
+            className="panel noise-overlay relative rounded-2xl p-4 sm:p-5 xl:sticky xl:top-24"
+            aria-label="Studio phone — in-page asset delivery"
+          >
+            <div className="mb-4 flex items-center justify-between gap-2">
+              <span className="kicker">Studio phone</span>
+              <span className="font-mono text-[9px] uppercase tracking-widest text-zinc-600">
+                assets play here
+              </span>
+            </div>
+            <PhonePlayer content={phone} />
+            <p className="mt-4 text-[11px] leading-relaxed text-zinc-500">
+              Finished videos render and play inside this phone — no clicking away to
+              the engine. Creatives can be pushed here with{" "}
+              <span className="font-mono text-[10px] text-teal-300">Load in phone</span>.
+            </p>
+          </aside>
         </div>
       </div>
     </section>
@@ -323,7 +343,13 @@ export default function PrStudio() {
 /* Tab 1 — Ad Creative (generate_ad_creative / shop)                   */
 /* ================================================================== */
 
-function CreativeTab({ mcpLive }: { mcpLive: boolean }) {
+function CreativeTab({
+  mcpLive,
+  request,
+}: {
+  mcpLive: boolean;
+  request?: { input: string; nonce: number } | null;
+}) {
   const [input, setInput] = useState("PanelView Plus 1000 HMI terminals just restocked");
   const [format, setFormat] = useState("carousel");
   const [kind, setKind] = useState<"creative" | "shop">("creative");
@@ -332,12 +358,14 @@ function CreativeTab({ mcpLive }: { mcpLive: boolean }) {
   const [error, setError] = useState<string | null>(null);
   const [showRaw, setShowRaw] = useState(false);
 
-  async function generate() {
+  async function generate(inputArg?: string) {
+    const topic = (inputArg ?? input).trim();
+    if (!topic) return;
     setLoading(true);
     setError(null);
     setResult(null);
     const { ok, data } = await postJson<Record<string, unknown>>("/api/mcp/creative", {
-      input,
+      input: topic,
       kind,
       format,
     });
@@ -345,6 +373,25 @@ function CreativeTab({ mcpLive }: { mcpLive: boolean }) {
     else setError((data.error as string) || "The P&R MCP call failed — honest error, no fake success.");
     setLoading(false);
   }
+
+  /* Console command handoff — fill + fire. */
+  const generateRef = useRef<(t?: string) => Promise<void>>(async () => {});
+  useEffect(() => {
+    generateRef.current = generate;
+  });
+  const creativeNonceRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!request || request.nonce === creativeNonceRef.current) return;
+    creativeNonceRef.current = request.nonce;
+    const topic = request.input;
+    // Deferred one tick — setState directly inside an effect body causes
+    // cascading renders (and the lint rule is right).
+    const t = window.setTimeout(() => {
+      setInput(topic);
+      void generateRef.current(topic);
+    }, 0);
+    return () => window.clearTimeout(t);
+  }, [request]);
 
   const images = result ? collectImages(result) : [];
   const pageUrls = result ? collectPageUrls(result) : [];
@@ -436,20 +483,32 @@ function CreativeTab({ mcpLive }: { mcpLive: boolean }) {
           {images.length > 0 ? (
             <div className="grid gap-3 sm:grid-cols-3">
               {images.slice(0, 6).map((img, i) => (
-                <a
+                <div
                   key={i}
-                  href={img.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
                   className="group relative overflow-hidden rounded-xl border border-white/10 bg-black/40"
                 >
-                  <img
-                    src={img.url}
-                    alt={`P&R MCP generated creative ${i + 1}`}
-                    className="h-52 w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                    loading="lazy"
-                  />
-                </a>
+                  <a href={img.url} target="_blank" rel="noopener noreferrer">
+                    <img
+                      src={img.url}
+                      alt={`P&R MCP generated creative ${i + 1}`}
+                      className="h-52 w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      loading="lazy"
+                    />
+                  </a>
+                  <button
+                    onClick={() =>
+                      loadStudioPhone({
+                        kind: "image",
+                        src: img.url,
+                        label: img.label ?? "P&R creative",
+                      })
+                    }
+                    className="absolute bottom-2 right-2 rounded-lg border border-teal-400/50 bg-black/80 px-2.5 py-1 font-mono text-[9px] uppercase tracking-wider text-teal-200 backdrop-blur transition-colors hover:bg-black"
+                    aria-label="Load this creative into the studio phone"
+                  >
+                    Load in phone
+                  </button>
+                </div>
               ))}
             </div>
           ) : (
@@ -614,25 +673,37 @@ function MultilangTab({ mcpLive }: { mcpLive: boolean }) {
           {images.length > 0 ? (
             <div className="grid gap-3 sm:grid-cols-3">
               {images.slice(0, 12).map((img, i) => (
-                <a
+                <div
                   key={i}
-                  href={img.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
                   className="group relative overflow-hidden rounded-xl border border-white/10 bg-black/40"
                 >
-                  <img
-                    src={img.url}
-                    alt={`P&R MCP multilanguage creative ${i + 1}${img.label ? ` — ${img.label}` : ""}`}
-                    className="h-52 w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                    loading="lazy"
-                  />
+                  <a href={img.url} target="_blank" rel="noopener noreferrer">
+                    <img
+                      src={img.url}
+                      alt={`P&R MCP multilanguage creative ${i + 1}${img.label ? ` — ${img.label}` : ""}`}
+                      className="h-52 w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      loading="lazy"
+                    />
+                  </a>
                   {img.label && (
                     <span className="absolute bottom-2 left-2 rounded bg-black/70 px-1.5 py-0.5 font-mono text-[9px] uppercase text-zinc-200">
                       {img.label}
                     </span>
                   )}
-                </a>
+                  <button
+                    onClick={() =>
+                      loadStudioPhone({
+                        kind: "image",
+                        src: img.url,
+                        label: img.label ?? "P&R multilang creative",
+                      })
+                    }
+                    className="absolute bottom-2 right-2 rounded-lg border border-teal-400/50 bg-black/80 px-2.5 py-1 font-mono text-[9px] uppercase tracking-wider text-teal-200 backdrop-blur transition-colors hover:bg-black"
+                    aria-label="Load this creative into the studio phone"
+                  >
+                    Load in phone
+                  </button>
+                </div>
               ))}
             </div>
           ) : (
@@ -691,7 +762,13 @@ type Mp4State = {
   error: string | null;
 };
 
-function VideoTab({ mcpLive }: { mcpLive: boolean }) {
+function VideoTab({
+  mcpLive,
+  request,
+}: {
+  mcpLive: boolean;
+  request?: { topic: string; nonce: number } | null;
+}) {
   const [topic, setTopic] = useState(
     "Why maintenance teams wait weeks for hard-to-find automation parts — and how DO Supply fixes it"
   );
@@ -725,38 +802,6 @@ function VideoTab({ mcpLive }: { mcpLive: boolean }) {
     [stopPolling, stopMp4Polling]
   );
 
-  async function start() {
-    setStarting(true);
-    setMp4(null);
-    setVideo({ jobId: null, status: "starting", pageUrl: null, error: null });
-    const { ok, data } = await postJson<{
-      mode?: string;
-      jobId?: string | null;
-      status?: string;
-      pageUrl?: string | null;
-      error?: string;
-      code?: string;
-    }>("/api/mcp/video", { topic, shape });
-    if (ok && data.mode === "live") {
-      const st: VideoState = {
-        jobId: data.jobId ?? null,
-        status: data.status ?? "queued",
-        pageUrl: data.pageUrl ?? null,
-        error: null,
-      };
-      setVideo(st);
-      if (st.jobId) startPolling(st.jobId);
-    } else {
-      setVideo({
-        jobId: null,
-        status: null,
-        pageUrl: null,
-        error: (data.error as string) || "create_phone_demo failed.",
-      });
-    }
-    setStarting(false);
-  }
-
   function startPolling(jobId: string) {
     stopPolling();
     pollRef.current = setInterval(async () => {
@@ -779,6 +824,81 @@ function VideoTab({ mcpLive }: { mcpLive: boolean }) {
       if (data.status === "done" || data.status === "failed") stopPolling();
     }, 15_000);
   }
+
+  function startMp4Polling(jobId: string) {
+    stopMp4Polling();
+    mp4PollRef.current = setInterval(async () => {
+      const { ok, data } = await postJson<{
+        status?: string;
+        mp4Url?: string | null;
+        error?: string | null;
+      }>("/api/mcp/job", { kind: "mp4", jobId });
+      if (!ok) return; // transient — keep polling
+      setMp4((prev) =>
+        prev
+          ? {
+              ...prev,
+              status: data.status ?? prev.status,
+              mp4Url: data.mp4Url ?? prev.mp4Url,
+              error: data.error ?? prev.error,
+            }
+          : prev
+      );
+      if (data.status === "done" || data.status === "failed") stopMp4Polling();
+    }, 15_000);
+  }
+
+  async function start(topicArg?: string) {
+    const t = (topicArg ?? topic).trim();
+    if (!t) return;
+    setStarting(true);
+    setMp4(null);
+    setVideo({ jobId: null, status: "starting", pageUrl: null, error: null });
+    const { ok, data } = await postJson<{
+      mode?: string;
+      jobId?: string | null;
+      status?: string;
+      pageUrl?: string | null;
+      error?: string;
+      code?: string;
+    }>("/api/mcp/video", { topic: t, shape });
+    if (ok && data.mode === "live") {
+      const st: VideoState = {
+        jobId: data.jobId ?? null,
+        status: data.status ?? "queued",
+        pageUrl: data.pageUrl ?? null,
+        error: null,
+      };
+      setVideo(st);
+      if (st.jobId) startPolling(st.jobId);
+    } else {
+      setVideo({
+        jobId: null,
+        status: null,
+        pageUrl: null,
+        error: (data.error as string) || "create_phone_demo failed.",
+      });
+    }
+    setStarting(false);
+  }
+
+  /* Console command handoff — fill + fire. */
+  const startRef = useRef<(t?: string) => Promise<void>>(async () => {});
+  useEffect(() => {
+    startRef.current = start;
+  });
+  const videoNonceRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!request || request.nonce === videoNonceRef.current) return;
+    videoNonceRef.current = request.nonce;
+    const topic = request.topic;
+    // Deferred one tick — same cascading-render reasoning as CreativeTab.
+    const t = window.setTimeout(() => {
+      setTopic(topic);
+      void startRef.current(topic);
+    }, 0);
+    return () => window.clearTimeout(t);
+  }, [request]);
 
   /** Human approval step — clicking IS the approval request_mp4 requires. */
   async function requestMp4() {
@@ -813,33 +933,36 @@ function VideoTab({ mcpLive }: { mcpLive: boolean }) {
     setMp4Busy(false);
   }
 
-  function startMp4Polling(jobId: string) {
-    stopMp4Polling();
-    mp4PollRef.current = setInterval(async () => {
-      const { ok, data } = await postJson<{
-        status?: string;
-        mp4Url?: string | null;
-        error?: string | null;
-      }>("/api/mcp/job", { kind: "mp4", jobId });
-      if (!ok) return; // transient — keep polling
-      setMp4((prev) =>
-        prev
-          ? {
-              ...prev,
-              status: data.status ?? prev.status,
-              mp4Url: data.mp4Url ?? prev.mp4Url,
-              error: data.error ?? prev.error,
-            }
-          : prev
-      );
-      if (data.status === "done" || data.status === "failed") stopMp4Polling();
-    }, 15_000);
-  }
-
   const done = video?.status === "done";
   const failed = video?.status === "failed";
   const mp4Done = mp4?.status === "done" || !!mp4?.mp4Url;
   const mp4Failed = mp4?.status === "failed";
+
+  /* Auto-delivery: the studio phone plays the video the moment the MP4
+     exists, and shows a one-approval-away card while only the preview
+     page exists. No click-away required at any point. */
+  const lastPhoneRef = useRef<string | null>(null);
+  useEffect(() => {
+    const mp4Url = mp4?.mp4Url;
+    if (mp4Url && lastPhoneRef.current !== mp4Url) {
+      lastPhoneRef.current = mp4Url;
+      loadStudioPhone({
+        kind: "video",
+        src: mp4Url,
+        label: "P&R video demo · rendered MP4",
+      });
+      return;
+    }
+    if (done && video?.pageUrl && !mp4Url && lastPhoneRef.current !== `preview:${video.pageUrl}`) {
+      lastPhoneRef.current = `preview:${video.pageUrl}`;
+      loadStudioPhone({
+        kind: "placeholder",
+        tone: "idle",
+        title: "Preview ready — one approval away",
+        body: "The engine's preview is a captioned page. Tap Approve & render MP4 and the finished video plays right here.",
+      });
+    }
+  }, [mp4?.mp4Url, done, video?.pageUrl]);
 
   return (
     <div className="panel rounded-2xl p-5 sm:p-6">
@@ -852,7 +975,7 @@ function VideoTab({ mcpLive }: { mcpLive: boolean }) {
           aria-label="Video demo topic"
         />
         <Button
-          onClick={start}
+          onClick={() => start()}
           disabled={starting || !topic.trim() || (video?.jobId != null && !done && !failed)}
           className="h-11 bg-teal-400 font-bold text-black hover:bg-teal-300"
         >
@@ -1079,6 +1202,16 @@ function AudioTab({ mcpLive }: { mcpLive: boolean }) {
 
   const done = audio?.status === "done";
   const failed = audio?.status === "failed";
+
+  /* Auto-delivery: a rendered 60s take plays in the studio phone. */
+  const lastPhoneRef = useRef<string | null>(null);
+  useEffect(() => {
+    const mp4Url = audio?.mp4Url;
+    if (mp4Url && lastPhoneRef.current !== mp4Url) {
+      lastPhoneRef.current = mp4Url;
+      loadStudioPhone({ kind: "video", src: mp4Url, label: "P&R 60s take · rendered MP4" });
+    }
+  }, [audio?.mp4Url]);
 
   return (
     <div className="panel rounded-2xl p-5 sm:p-6">
