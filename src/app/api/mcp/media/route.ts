@@ -24,11 +24,20 @@ const ALLOWED_HOSTS = new Set([
   "www.plunderandriffle.com",
 ]);
 
-function hostAllowed(host: string): boolean {
+function hostAllowed(host: string, pathname = ""): boolean {
   const h = host.toLowerCase();
   if (ALLOWED_HOSTS.has(h)) return true;
   // here.now hosts the rendered MP4 pages (e.g. brisk-oyster-4drj.here.now)
   if (h.endsWith(".here.now") && h.length > ".here.now".length) return true;
+  // The engine 302s creatives/MP4s to pre-signed Cloudflare R2 URLs. Allow only
+  // its own bucket prefix, so this cannot become a general-purpose proxy.
+  if (
+    h.endsWith(".r2.cloudflarestorage.com") &&
+    h.length > ".r2.cloudflarestorage.com".length &&
+    pathname.startsWith("/memes/")
+  ) {
+    return true;
+  }
   return false;
 }
 
