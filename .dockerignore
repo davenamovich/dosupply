@@ -1,0 +1,15 @@
+node_modules
+.next
+.git
+.gitignore
+.env
+.env.*
+*.log
+db/*.db
+db/*.db-journal
+.zscripts
+tests
+tool-results
+download
+mini-services
+examples
