@@ -133,6 +133,9 @@ export default function Dashboard() {
           <a href="/sales-agent" className="font-semibold text-amber-300 hover:underline">
             ← Back to chat
           </a>
+          <a href="/" className="rounded-full border border-white/10 px-3 py-1 font-semibold text-zinc-100 hover:border-amber-400/50 hover:text-amber-300">
+            Home
+          </a>
         </div>
       </header>
 
