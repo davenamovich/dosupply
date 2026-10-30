@@ -115,7 +115,7 @@ export default function EasterEgg() {
 
               <div className="relative">
                 <div className="flex flex-wrap items-center gap-3">
-                  <span className="kicker">Confidential concept — candidate to DO Supply</span>
+                  <span className="kicker">Confidential concept — for DO Supply</span>
                   <ProvenanceBadge kind="demo">Exploratory idea</ProvenanceBadge>
                 </div>
 

@@ -38,7 +38,7 @@ export default function Roadmap() {
               Not a slide deck. <span className="text-amber-glow">A schedule.</span>
             </>
           }
-          desc="What the first month looks like actually operating this engine for DO Supply. Click the items to simulate progress — this is the same plan I'd bring on day one."
+          desc="What the first month looks like actually operating this engine for DO Supply. Click the items to simulate progress — this is the plan that has the engine running in week one."
         />
 
         {/* progress bar */}

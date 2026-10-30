@@ -57,7 +57,7 @@ export default function ProductGallery() {
               <Camera className="h-2.5 w-2.5" /> AI-generated concept imagery
             </span>
           }
-          desc="The engine pairs every product line with cinematic photography concepts — this gallery sets the visual tone for the content a full-time specialist would produce."
+          desc="The engine pairs every product line with cinematic photography concepts — this gallery sets the visual tone for the content it produces."
         />
 
         <div className="mt-12 grid auto-rows-min grid-cols-1 gap-4 md:grid-cols-4">

@@ -54,8 +54,8 @@ export default function Footer() {
             drafts, <span className="text-zinc-400">Demonstration data</span> for sample
             datasets. Reviews and testimonials shown are fictional demonstrations. No
             invented product specifications, availability claims, or customer
-            information. This is a job-candidate demonstration, not an official DO
-            Supply property.
+            information. This is an independent concept demonstration, not an official
+            DO Supply property.
           </p>
           <p className="mt-3 font-mono text-[10px] text-zinc-700">
             © {new Date().getFullYear()} Plunder &amp; Riffle · Built as a personalized
