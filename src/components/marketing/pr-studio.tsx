@@ -629,7 +629,10 @@ function MultilangTab({ mcpLive }: { mcpLive: boolean }) {
   }
 
   const pageUrls = result ? collectPageUrls(result) : [];
-  const vertical = result ? pickVerticalCreative(result) : null;
+  // The route names the asset; fall back to walking the payload if it didn't.
+  const vertical =
+    (result?.vertical as { url: string; label: string } | null | undefined) ??
+    (result ? pickVerticalCreative(result) : null);
 
   /* Deliver the vertical cut to the studio phone as soon as a batch lands. */
   const lastPhoneRef = useRef<string | null>(null);
