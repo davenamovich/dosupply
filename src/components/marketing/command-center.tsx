@@ -39,7 +39,7 @@ export default function CommandCenter() {
               Six modules. <span className="text-amber-glow">One engine.</span>
             </>
           }
-          desc="Every module below is live. Pick inputs, generate real AI-drafted drafts, and watch how one brand voice flexes across every channel — the same workflows a Multimedia Marketing Specialist would operate for DO Supply."
+          desc="Every module below is live. Pick inputs, generate real AI-drafted drafts, and watch how one brand voice flexes across every channel for DO Supply."
         />
 
         <Tabs value={tab} onValueChange={setTab} className="mt-12">

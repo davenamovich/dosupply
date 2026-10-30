@@ -292,7 +292,7 @@ ${JSON_ONLY_INSTRUCTION}`;
   };
 }
 
-async function genReputation(review: {
+async function genReputation(review?: {
   rating?: number;
   title?: string;
   text?: string;

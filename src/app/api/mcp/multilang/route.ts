@@ -3,6 +3,7 @@ import { callMcpTool } from "@/lib/mcp/client";
 import { engineBrand } from "@/lib/mcp/brand";
 import { rateLimit } from "@/lib/ai";
 import { bumpStat } from "@/lib/session-stats";
+import { pickVerticalCreative } from "@/lib/vertical-creative";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -101,6 +102,8 @@ export async function POST(req: NextRequest) {
     server: "meme-engine (bot.plunderandriffle.com/api/mcp)",
     languages,
     format,
+    // Named here so the UI doesn't have to walk the tool's payload shape.
+    vertical: pickVerticalCreative(result.data),
     payload: result.data,
     generatedAt: new Date().toISOString(),
   });

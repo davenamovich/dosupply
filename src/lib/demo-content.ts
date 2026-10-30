@@ -278,40 +278,40 @@ export const ROADMAP_WEEKS = [
       "Analyze engagement",
       "Refine content formats",
       "Expand video production",
-      "Present an AI and data monetization opportunity assessment",
+      "Present the AI lab referral-fee opportunity assessment",
     ],
   },
 ];
 
 export const DATA_MONETIZATION_OPPORTUNITIES = [
   {
-    title: "Structured Industrial Product Datasets",
-    desc: "Clean, normalized product reference data — categories, series, documentation links — organized for legitimate licensing.",
+    title: "Customer Relationships",
+    desc: "Plant managers, maintenance engineers and OEMs who call DO Supply first — a warm path no lab can cold-call its way into.",
     icon: "database",
   },
   {
-    title: "Technical Documentation & Reference Libraries",
-    desc: "Curated manuals, guides and reference material, appropriately licensed and permissioned.",
+    title: "Seller & Dealer Network",
+    desc: "Suppliers, distributors and resellers on the other side of the trade — the people who actually know where legacy stock lives.",
     icon: "book",
   },
   {
-    title: "Licensed Industrial Knowledge Collections",
-    desc: "Themed knowledge products: drive selection, HMI troubleshooting, legacy migration playbooks.",
+    title: "Closed-Seller Know-How",
+    desc: "Sellers who shut their doors still hold value: part numbers, cross-references and repair history worth an introduction.",
     icon: "layers",
   },
   {
-    title: "AI-Ready Technical Information",
-    desc: "Structured, machine-readable technical content prepared for authorized AI training and retrieval products.",
+    title: "Introductions, Not Sales",
+    desc: "You authorize the introduction; the lab pays the referral fee. Nothing changes hands behind your back.",
+    icon: "handshake",
+  },
+  {
+    title: "AI-Ready Industrial Ground Truth",
+    desc: "The records behind the relationships — CAD drawings, maintenance history, Slack and email — offered only where you allow it.",
     icon: "cpu",
   },
   {
-    title: "Specialized Industry Knowledge Products",
-    desc: "Original educational content and tooling built on DO Supply's real domain expertise.",
+    title: "Proceeds Fund Expansion",
+    desc: "Referral revenue goes back into inventory, service and reach, instead of gathering dust in an old contact list.",
     icon: "graduation",
-  },
-  {
-    title: "Partnerships with Legitimate AI Data Buyers",
-    desc: "Vetted, consent-based data licensing relationships with proper contracts and safeguards.",
-    icon: "handshake",
   },
 ];

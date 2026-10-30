@@ -26,10 +26,10 @@ const ICONS: Record<string, React.ElementType> = {
 };
 
 const PIPELINE = [
-  { label: "Product Knowledge", desc: "what DO Supply already knows" },
-  { label: "Structured Data", desc: "organized, permissioned, clean" },
-  { label: "Licensed Assets", desc: "contracted, safeguarded products" },
-  { label: "New Revenue", desc: "beyond traditional sales" },
+  { label: "Your Network", desc: "customers, sellers — closed or still trading" },
+  { label: "The Labs", desc: "paying for introductions, not files" },
+  { label: "The Introduction", desc: "you authorize — I open the door" },
+  { label: "Referral Fees", desc: "paid to you, not a data sale" },
 ];
 
 export default function EasterEgg() {
@@ -90,7 +90,7 @@ export default function EasterEgg() {
             className="fixed inset-0 z-[90] overflow-y-auto bg-black/80 backdrop-blur-md"
             role="dialog"
             aria-modal="true"
-            aria-label="The next revenue opportunity"
+            aria-label="The AI lab referral opportunity"
           >
             <motion.div
               initial={{ opacity: 0, y: 28, scale: 0.98 }}
@@ -115,22 +115,25 @@ export default function EasterEgg() {
 
               <div className="relative">
                 <div className="flex flex-wrap items-center gap-3">
-                  <span className="kicker">Confidential concept — candidate to DO Supply</span>
+                  <span className="kicker">Confidential concept — for DO Supply</span>
                   <ProvenanceBadge kind="demo">Exploratory idea</ProvenanceBadge>
                 </div>
 
                 <h2 className="mt-4 text-3xl sm:text-4xl font-bold leading-tight text-white">
-                  WHAT IF YOUR DATA WAS
+                  YOUR CUSTOMERS AND YOUR SELLERS.
                   <br />
-                  <span className="text-teal-glow">ANOTHER PRODUCT?</span>
+                  <span className="text-teal-glow">BOTH ARE WORTH AN INTRODUCTION.</span>
                 </h2>
 
                 <p className="mt-5 max-w-3xl text-sm leading-relaxed text-zinc-400">
-                  DO Supply operates in an ecosystem rich in technical knowledge, product
-                  information and industrial expertise. That knowledge may have value
-                  beyond traditional product sales. Imagine building a structured data
-                  monetization strategy around appropriately licensed and authorized
-                  information.
+                  The asset is not a drive full of files — it is who you know. The plant
+                  managers and maintenance engineers who call DO Supply first, and the
+                  sellers and dealers on the other side of the trade, including the ones
+                  who have since closed their doors. Their part numbers, cross-references
+                  and hard-won know-how still matter, and AI labs pay enormous referral
+                  fees for an introduction to exactly that network. Nothing is sold: you
+                  authorize the introduction, the lab pays the referral, and the
+                  relationship stays yours.
                 </p>
 
                 {/* Pipeline */}
@@ -155,7 +158,7 @@ export default function EasterEgg() {
 
                 {/* Opportunities */}
                 <h3 className="mt-10 text-lg font-semibold text-white">
-                  Potential opportunities
+                  What the introductions are worth
                 </h3>
                 <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {DATA_MONETIZATION_OPPORTUNITIES.map((o) => {
@@ -179,24 +182,28 @@ export default function EasterEgg() {
                     </p>
                   </div>
                   <p className="mt-2.5 text-xs leading-relaxed text-amber-100/80">
-                    Any implementation would require ownership verification, customer
-                    permissions, confidentiality safeguards and appropriate licensing.
-                    Confidential customer information is never a sellable asset — this
-                    concept concerns only appropriately licensed, owned or authorized
-                    knowledge.
+                    Nothing moves without verified ownership, written authorization and a
+                    clean paper trail. Customers are asked before their name goes
+                    anywhere, and a closed seller&apos;s assets are only referenced where
+                    title is clear. Pricing, contracts and anything under NDA stay out of
+                    scope. You approve every introduction, you can stop at any point, and
+                    the relationships they meet are yours — not mine.
                   </p>
                 </div>
 
                 <h3 className="mt-10 text-2xl sm:text-3xl font-bold text-white">
-                  &ldquo;You&apos;re Already Sitting on Knowledge.
+                  &ldquo;You&apos;ve Built the Relationships.
                   <br />
-                  <span className="text-amber-glow">What Else Could It Be Worth?&rdquo;</span>
+                  <span className="text-amber-glow">Now It&apos;s Time to Monetize Them.&rdquo;</span>
                 </h3>
 
                 <p className="mt-5 max-w-2xl border-l-2 border-teal-400/50 pl-4 text-sm italic leading-relaxed text-zinc-300">
-                  I see an opportunity to bring together marketing, AI infrastructure and
-                  data monetization. I&apos;d love to explore what that could look like
-                  with your team.
+                  AI is not going away, and those introductions are worth money whether
+                  you make them or not — the labs are already paying someone for them.
+                  Let the contact list collect dust, or take the referral proceeds and put
+                  them back into operations: more inventory, more service, more reach. The
+                  only thing between those two futures is an introduction, and I can make
+                  it.
                 </p>
                 <p className="mt-4 font-mono text-[10px] uppercase tracking-[0.22em] text-zinc-600">
                   — Dave · Founder, Plunder &amp; Riffle

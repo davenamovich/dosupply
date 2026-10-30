@@ -17,7 +17,7 @@ export default function FinalCta() {
             <>
               DON&apos;T TAKE MY WORD FOR IT.
               <br />
-              <span className="text-amber-glow">LET ME SHOW YOU.</span>
+              <span className="text-amber-glow">LET ME MAKE THE INTRODUCTION.</span>
             </>
           }
           provenance={<span />}
@@ -25,24 +25,29 @@ export default function FinalCta() {
 
         <div className="mx-auto mt-8 max-w-2xl space-y-5 text-left sm:text-center">
           <p className="leading-relaxed text-zinc-300">
-            &ldquo;I&apos;m building Plunder &amp; Riffle because I believe the future of
-            marketing isn&apos;t about creating more work. It&apos;s about building
-            smarter systems that make great content easier to produce and distribute.
+            &ldquo;The asset is not the archive — it is who you know. The plant managers
+            and maintenance engineers who call DO Supply first, and the sellers and
+            dealers on the other side of the trade, including the ones who have since
+            closed. Labs building industrial AI are paying enormous referral fees for an
+            introduction to exactly that network.
           </p>
           <p className="leading-relaxed text-zinc-300">
-            I&apos;d love to bring that mindset, creativity and technical experience to
-            DO Supply.
+            You&apos;ve built the relationships. Now it&apos;s time to monetize them: you
+            authorize what&apos;s in scope, the lab pays the referral, and the
+            relationship stays yours.
           </p>
           <p className="leading-relaxed text-zinc-300">
-            This isn&apos;t just about filling a marketing position. It&apos;s about
-            exploring what we could build.&rdquo;
+            AI is not going away, and those introductions have a price whether you make
+            them or not. Let the contact list collect dust, or put the referral proceeds
+            back into operations — more inventory, more service, more reach. I&apos;ll
+            make the introductions.&rdquo;
           </p>
         </div>
 
         <div className="mt-10 flex flex-col items-center gap-2">
           <span className="text-2xl font-bold text-white">Dave</span>
           <span className="font-mono text-[10px] uppercase tracking-[0.24em] text-zinc-500">
-            Founder, Plunder &amp; Riffle
+            Founder, Plunder &amp; Riffle · introductions to AI labs
           </span>
         </div>
 
@@ -61,7 +66,7 @@ export default function FinalCta() {
           <Button asChild size="lg" className="bg-amber-400 font-semibold text-black hover:bg-amber-300 glow-amber">
             <a href="https://plunderandriffle.com/" target="_blank" rel="noopener noreferrer">
               <CalendarClock className="mr-2 h-4 w-4" />
-              Schedule a Conversation
+              Discuss an Introduction
             </a>
           </Button>
         </div>
