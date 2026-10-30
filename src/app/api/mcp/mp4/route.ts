@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { callMcpTool, mcpKeyConfigured } from "@/lib/mcp/client";
-import { rateLimit } from "@/lib/ai";
+import { BUSY_RESPONSE, clientIp, globalLimit, rateLimit } from "@/lib/ai";
 import { bumpStat } from "@/lib/session-stats";
 
 export const dynamic = "force-dynamic";
@@ -22,12 +22,15 @@ type Mp4Start = {
  * /api/mcp/job (kind "mp4") until done carries mp4Url.
  */
 export async function POST(req: NextRequest) {
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0] || "local";
-  if (!rateLimit(ip, 6, 60_000)) {
+  const ip = clientIp(req);
+  if (!rateLimit(`mp4:${ip}`, 6, 60_000)) {
     return NextResponse.json(
       { error: "MP4 render rate limit reached.", code: "rate" },
       { status: 429 }
     );
+  }
+  if (!globalLimit("mp4", 10)) {
+    return NextResponse.json(BUSY_RESPONSE, { status: 429 });
   }
 
   let body: { pageUrl?: string };

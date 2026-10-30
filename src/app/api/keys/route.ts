@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { callMcpTool } from "@/lib/mcp/client";
+import { clientIp, guessesBlocked, recordFailedGuess } from "@/lib/ai";
 import {
   allKeyStatuses,
   clearRuntimeKey,
@@ -33,7 +34,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
+  const ip = clientIp(req);
+  if (guessesBlocked(ip)) {
+    return NextResponse.json({ error: "Too many wrong passcodes. Try again in a few minutes." }, { status: 429 });
+  }
   if (!passcodeValid(body.passcode)) {
+    recordFailedGuess(ip);
     return NextResponse.json(
       { error: "Invalid setup passcode." },
       { status: 401 }
@@ -91,7 +97,12 @@ export async function DELETE(req: NextRequest) {
     service = req.nextUrl.searchParams.get("service");
   }
 
+  const ip = clientIp(req);
+  if (guessesBlocked(ip)) {
+    return NextResponse.json({ error: "Too many wrong passcodes. Try again in a few minutes." }, { status: 429 });
+  }
   if (!passcodeValid(passcode)) {
+    recordFailedGuess(ip);
     return NextResponse.json({ error: "Invalid setup passcode." }, { status: 401 });
   }
 

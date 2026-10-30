@@ -126,17 +126,62 @@ export function parseJsonLoose<T>(raw: string): T {
   return JSON.parse(text) as T;
 }
 
-/** Simple in-memory rate limiter per IP. */
+/**
+ * Best guess at the real client address behind Railway's proxy. A client can
+ * put anything at the front of X-Forwarded-For, so prefer the proxy's own
+ * X-Real-IP and otherwise take the last hop, which the proxy appended.
+ */
+export function clientIp(req: Request): string {
+  const real = req.headers.get("x-real-ip")?.trim();
+  if (real) return real;
+  const hops = (req.headers.get("x-forwarded-for") || "").split(",").map((h) => h.trim()).filter(Boolean);
+  return hops.length ? hops[hops.length - 1] : "local";
+}
+
+/** Fixed-window, in-memory limiter. One bucket per key, so scope keys per route. */
 const rateBuckets = new Map<string, { count: number; reset: number }>();
 
-export function rateLimit(ip: string, limit = 30, windowMs = 60_000): boolean {
+export function rateLimit(key: string, limit = 30, windowMs = 60_000): boolean {
   const now = Date.now();
-  const bucket = rateBuckets.get(ip);
+  if (rateBuckets.size > 5000) {
+    for (const [k, b] of rateBuckets) if (now > b.reset) rateBuckets.delete(k);
+  }
+  const bucket = rateBuckets.get(key);
   if (!bucket || now > bucket.reset) {
-    rateBuckets.set(ip, { count: 1, reset: now + windowMs });
+    rateBuckets.set(key, { count: 1, reset: now + windowMs });
     return true;
   }
   if (bucket.count >= limit) return false;
   bucket.count += 1;
   return true;
+}
+
+/**
+ * A cap shared by every visitor, so many addresses together cannot run up the
+ * cost of a paid tool or flood the sales team. Defaults to per hour.
+ */
+export function globalLimit(scope: string, limit: number, windowMs = 3_600_000): boolean {
+  return rateLimit(`global:${scope}`, limit, windowMs);
+}
+
+export const BUSY_RESPONSE = {
+  error: "The demo has reached its hourly limit for this tool. Please try again in a little while.",
+  code: "rate",
+} as const;
+
+/* Passcode guessing: only wrong guesses count, and too many lock the address out for a while. */
+const failedGuesses = new Map<string, { count: number; reset: number }>();
+const GUESS_LIMIT = 10;
+const GUESS_WINDOW_MS = 10 * 60_000;
+
+export function guessesBlocked(ip: string): boolean {
+  const b = failedGuesses.get(ip);
+  return Boolean(b && Date.now() <= b.reset && b.count >= GUESS_LIMIT);
+}
+
+export function recordFailedGuess(ip: string): void {
+  const now = Date.now();
+  const b = failedGuesses.get(ip);
+  if (!b || now > b.reset) failedGuesses.set(ip, { count: 1, reset: now + GUESS_WINDOW_MS });
+  else b.count += 1;
 }

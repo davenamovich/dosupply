@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { callMcpTool, mcpKeyConfigured } from "@/lib/mcp/client";
 import { videoLook } from "@/lib/mcp/brand";
-import { rateLimit } from "@/lib/ai";
+import { BUSY_RESPONSE, clientIp, globalLimit, rateLimit } from "@/lib/ai";
 import { bumpStat } from "@/lib/session-stats";
 
 export const dynamic = "force-dynamic";
@@ -25,12 +25,15 @@ type PhoneDemoStart = {
  * triggered by the user clicking the render button — never auto-fired.
  */
 export async function POST(req: NextRequest) {
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0] || "local";
-  if (!rateLimit(ip, 8, 60_000)) {
+  const ip = clientIp(req);
+  if (!rateLimit(`video:${ip}`, 8, 60_000)) {
     return NextResponse.json(
       { error: "Video generation rate limit reached.", code: "rate" },
       { status: 429 }
     );
+  }
+  if (!globalLimit("video", 20)) {
+    return NextResponse.json(BUSY_RESPONSE, { status: 429 });
   }
 
   let body: { topic?: string; shape?: string; title?: string };

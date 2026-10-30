@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { callMcpTool, mcpKeyConfigured, mcpUrl } from "@/lib/mcp/client";
 import { engineBrand } from "@/lib/mcp/brand";
-import { rateLimit } from "@/lib/ai";
+import { BUSY_RESPONSE, clientIp, globalLimit, rateLimit } from "@/lib/ai";
 import { bumpStat } from "@/lib/session-stats";
 
 export const dynamic = "force-dynamic";
@@ -38,12 +38,15 @@ export type CreativeResult = {
  * kind=shop     → shop (product input → researched copy + up to 3 creatives)
  */
 export async function POST(req: NextRequest) {
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0] || "local";
-  if (!rateLimit(ip, 10, 60_000)) {
+  const ip = clientIp(req);
+  if (!rateLimit(`creative:${ip}`, 10, 60_000)) {
     return NextResponse.json(
       { error: "Creative generation rate limit reached — the engine is busy.", code: "rate" },
       { status: 429 }
     );
+  }
+  if (!globalLimit("creative", 60)) {
+    return NextResponse.json(BUSY_RESPONSE, { status: 429 });
   }
 
   let body: { input?: string; direction?: string; kind?: string; format?: string };
