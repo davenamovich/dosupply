@@ -3,10 +3,13 @@ import { timingSafeEqual } from "crypto";
 import { clientIp, guessesBlocked, recordFailedGuess } from "@/lib/ai";
 
 /**
- * Dashboard gate. Leads contain customer contact details, so when
- * ADMIN_PASSCODE is set the dashboard API requires it (x-dashboard-passcode).
- * With it unset, access is open outside production for local demos and closed
- * in production.
+ * Two access levels. Anyone can open the dashboard and see the leads with
+ * contact details hidden ("public"). Everything that changes something or
+ * shows a secret (status changes, retries, the Telegram panel and its connect
+ * links) needs the admin passcode, sent as x-dashboard-passcode.
+ *
+ * With ADMIN_PASSCODE unset, admin is open outside production (local demos)
+ * and unavailable in production, where only the masked public view works.
  */
 export function dashboardAllowed(req: NextRequest): boolean {
   const expected = process.env.ADMIN_PASSCODE?.trim();
@@ -24,4 +27,14 @@ export function dashboardAllowed(req: NextRequest): boolean {
 
 export function dashboardNeedsPasscode(): boolean {
   return Boolean(process.env.ADMIN_PASSCODE?.trim());
+}
+
+export type DashboardRole = "admin" | "public" | "denied";
+
+/** "denied" means a passcode was sent and it was wrong (or the address is locked out). */
+export function dashboardRole(req: NextRequest): DashboardRole {
+  if (req.headers.get("x-dashboard-passcode") === null) {
+    return dashboardAllowed(req) ? "admin" : "public";
+  }
+  return dashboardAllowed(req) ? "admin" : "denied";
 }
