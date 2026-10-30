@@ -1,9 +1,50 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Clapperboard, ImageIcon, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FitImage, FitVideo } from "./fit-media";
+
+/**
+ * The engine's temp page, shown full-screen inside the phone. The HTML comes
+ * through /api/mcp/preview (the engine forbids framing it) and is mounted via
+ * srcDoc, so the sandboxed frame never has to navigate to a URL. That keeps it
+ * working in embedded browsers that refuse sandboxed frame navigations.
+ */
+function PagePreview({ src, title }: { src: string; title: string }) {
+  const [state, setState] = useState<{ html: string } | { error: string } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/mcp/preview?url=${encodeURIComponent(src)}`)
+      .then(async (r) => {
+        if (!r.ok) throw new Error(`Preview unavailable (HTTP ${r.status})`);
+        return r.text();
+      })
+      .then((html) => !cancelled && setState({ html }))
+      .catch((e) => !cancelled && setState({ error: e instanceof Error ? e.message : "Preview failed to load" }));
+    return () => {
+      cancelled = true;
+    };
+  }, [src]);
+
+  if (!state) return <Loader2 className="mx-auto h-7 w-7 animate-spin text-amber-300" aria-label="Loading preview" />;
+  if ("error" in state) {
+    return <p className="px-8 text-center font-mono text-[10px] leading-relaxed text-zinc-500">{state.error}</p>;
+  }
+  return (
+    <iframe
+      srcDoc={state.html}
+      className="h-full w-full border-0 bg-black"
+      /* Sandboxed WITHOUT allow-same-origin: the page runs in an opaque origin
+         and cannot touch this site. */
+      sandbox="allow-scripts allow-popups"
+      allow="autoplay"
+      title={title}
+      referrerPolicy="no-referrer"
+    />
+  );
+}
 
 export type PhoneContent =
   | { kind: "video"; src: string; label?: string }
@@ -91,17 +132,7 @@ export default function PhonePlayer({
                 </p>
               </div>
             ) : content.kind === "page" ? (
-              <iframe
-                key={content.src}
-                src={`/api/mcp/preview?url=${encodeURIComponent(content.src)}`}
-                className="h-full w-full border-0 bg-black"
-                /* Sandboxed WITHOUT allow-same-origin — the proxied page runs
-                   in an opaque origin and cannot touch this site. */
-                sandbox="allow-scripts allow-popups"
-                allow="autoplay"
-                title={label ?? "P&R engine preview page"}
-                referrerPolicy="no-referrer"
-              />
+              <PagePreview key={content.src} src={content.src} title={label ?? "P&R engine preview page"} />
             ) : content.kind === "video" ? (
               <FitVideo
                 src={`/api/mcp/media?url=${encodeURIComponent(content.src)}`}
