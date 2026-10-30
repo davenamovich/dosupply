@@ -92,6 +92,21 @@ prefer environment variables; the runtime file is for local or single-instance u
 | `/api/keys`     | GET / POST / DELETE | Masked key status; save and clear keys (passcode-gated). |
 | `/api/status`   | GET           | MCP connection, key sources, active research provider.       |
 
+## Smoke test
+
+One command checks that a running instance is healthy:
+
+```bash
+bun run smoke                                            # http://localhost:3000
+bun run smoke https://dosupply-production.up.railway.app  # a deployed instance
+SMOKE_BASE_URL=https://... bun run smoke                 # same, via env
+```
+
+It exercises `GET /api/status`, `POST /api/research` and a real `POST /api/generate` (one model
+call and one search), prints PASS/FAIL per check, and exits non-zero if anything fails — so it can
+gate a deploy. Override the sample query and input with `SMOKE_QUERY` / `SMOKE_INPUT`, and the
+per-request timeout with `SMOKE_TIMEOUT_MS` (default 120000).
+
 ## Deploying on Railway
 
 The `Dockerfile` builds the Next standalone output and runs `server.js` on `$PORT`.
