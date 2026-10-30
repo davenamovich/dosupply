@@ -102,7 +102,7 @@ const REAL_TILES: {
   { key: "creative", label: "Ad creatives generated", icon: ImageIcon },
   { key: "multilang", label: "Multilang batches", icon: Languages },
   { key: "video", label: "Video demos started", icon: Clapperboard },
-  { key: "mp4", label: "MP4s rendered", icon: Film },
+  { key: "mp4", label: "MP4 renders requested", icon: Film },
   { key: "audio", label: "60s audio takes", icon: AudioLines },
   { key: "jobsCompleted", label: "Engine jobs finished", icon: CheckCircle2 },
 ];

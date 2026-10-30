@@ -3,8 +3,8 @@
  *
  * Integrity rule: these numbers are incremented exclusively after a
  * successful `mode:"live"` MCP response — never by demo/simulated content.
- * The UI labels them "this session, this server" and pairs them with the
- * clearly-labeled demonstration projections.
+ * The UI labels them "Live engine session — real calls through this site" and
+ * pairs them with the clearly-labeled demonstration projections.
  *
  * In-memory by design (no DB): a demo deployment's lifetime is one session.
  * Stored on globalThis so Next.js dev-mode module reloads keep the counts.
