@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 /* ------------------------------------------------------------------ */
@@ -89,9 +90,12 @@ const PROV_MAP: Record<Provenance, { label: string; cls: string }> = {
 export function ProvenanceBadge({
   kind,
   className,
+  children,
 }: {
   kind: Provenance;
   className?: string;
+  /** Optional call-site label; falls back to the kind's default text. */
+  children?: ReactNode;
 }) {
   const p = PROV_MAP[kind];
   return (
@@ -103,7 +107,7 @@ export function ProvenanceBadge({
       )}
     >
       {kind === "pnr" ? "◈ " : kind === "ai" ? "✦ " : "◇ "}
-      {p.label}
+      {children ?? p.label}
     </span>
   );
 }

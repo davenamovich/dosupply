@@ -26,10 +26,10 @@ const ICONS: Record<string, React.ElementType> = {
 };
 
 const PIPELINE = [
-  { label: "Product Knowledge", desc: "what DO Supply already knows" },
-  { label: "Structured Data", desc: "organized, permissioned, clean" },
-  { label: "Licensed Assets", desc: "contracted, safeguarded products" },
-  { label: "New Revenue", desc: "beyond traditional sales" },
+  { label: "Your Archive", desc: "old CAD drawings, maintenance records, Slack, email" },
+  { label: "The Buyers", desc: "AI labs paying for real industrial ground truth" },
+  { label: "The Introduction", desc: "you authorize — I open the door" },
+  { label: "Referral Fees", desc: "paid to you, not a data sale" },
 ];
 
 export default function EasterEgg() {
@@ -90,7 +90,7 @@ export default function EasterEgg() {
             className="fixed inset-0 z-[90] overflow-y-auto bg-black/80 backdrop-blur-md"
             role="dialog"
             aria-modal="true"
-            aria-label="The next revenue opportunity"
+            aria-label="The AI lab referral opportunity"
           >
             <motion.div
               initial={{ opacity: 0, y: 28, scale: 0.98 }}
@@ -120,17 +120,18 @@ export default function EasterEgg() {
                 </div>
 
                 <h2 className="mt-4 text-3xl sm:text-4xl font-bold leading-tight text-white">
-                  WHAT IF YOUR DATA WAS
+                  YOU&apos;VE BUILT THE RELATIONSHIPS.
                   <br />
-                  <span className="text-teal-glow">ANOTHER PRODUCT?</span>
+                  <span className="text-teal-glow">NOW MONETIZE THE INTRODUCTIONS.</span>
                 </h2>
 
                 <p className="mt-5 max-w-3xl text-sm leading-relaxed text-zinc-400">
-                  DO Supply operates in an ecosystem rich in technical knowledge, product
-                  information and industrial expertise. That knowledge may have value
-                  beyond traditional product sales. Imagine building a structured data
-                  monetization strategy around appropriately licensed and authorized
-                  information.
+                  Years of trust with the people who actually run plants is the one thing
+                  AI labs cannot buy for themselves. Old CAD drawings, maintenance records,
+                  Slack threads and email archives are sitting on drives collecting dust,
+                  while those labs pay enormous referral fees for a path to exactly that
+                  material. This is not a data sale — it is an introduction. You authorize
+                  the access, the lab pays the referral, and the relationship stays yours.
                 </p>
 
                 {/* Pipeline */}
@@ -155,7 +156,7 @@ export default function EasterEgg() {
 
                 {/* Opportunities */}
                 <h3 className="mt-10 text-lg font-semibold text-white">
-                  Potential opportunities
+                  What the introductions are worth
                 </h3>
                 <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {DATA_MONETIZATION_OPPORTUNITIES.map((o) => {
@@ -179,24 +180,25 @@ export default function EasterEgg() {
                     </p>
                   </div>
                   <p className="mt-2.5 text-xs leading-relaxed text-amber-100/80">
-                    Any implementation would require ownership verification, customer
-                    permissions, confidentiality safeguards and appropriate licensing.
-                    Confidential customer information is never a sellable asset — this
-                    concept concerns only appropriately licensed, owned or authorized
-                    knowledge.
+                    Nothing moves without verified ownership, written authorization and a
+                    clean paper trail. Customer names, pricing and anything under NDA stay
+                    out of scope; labs get licensed access, never the file. You approve
+                    every introduction, you can stop at any point, and the relationships
+                    they meet are yours — not mine.
                   </p>
                 </div>
 
                 <h3 className="mt-10 text-2xl sm:text-3xl font-bold text-white">
-                  &ldquo;You&apos;re Already Sitting on Knowledge.
+                  &ldquo;You&apos;ve Built the Relationships.
                   <br />
-                  <span className="text-amber-glow">What Else Could It Be Worth?&rdquo;</span>
+                  <span className="text-amber-glow">Now It&apos;s Time to Monetize Them.&rdquo;</span>
                 </h3>
 
                 <p className="mt-5 max-w-2xl border-l-2 border-teal-400/50 pl-4 text-sm italic leading-relaxed text-zinc-300">
-                  I see an opportunity to bring together marketing, AI infrastructure and
-                  data monetization. I&apos;d love to explore what that could look like
-                  with your team.
+                  AI is not going away. You can let the data collect dust, or take the
+                  referral proceeds and put them back into operations — more inventory,
+                  more service, more reach. The only thing standing between those two
+                  futures is an introduction, and I can make it.
                 </p>
                 <p className="mt-4 font-mono text-[10px] uppercase tracking-[0.22em] text-zinc-600">
                   — Dave · Founder, Plunder &amp; Riffle

@@ -278,40 +278,40 @@ export const ROADMAP_WEEKS = [
       "Analyze engagement",
       "Refine content formats",
       "Expand video production",
-      "Present an AI and data monetization opportunity assessment",
+      "Present the AI lab referral-fee opportunity assessment",
     ],
   },
 ];
 
 export const DATA_MONETIZATION_OPPORTUNITIES = [
   {
-    title: "Structured Industrial Product Datasets",
-    desc: "Clean, normalized product reference data — categories, series, documentation links — organized for legitimate licensing.",
+    title: "Legacy CAD Drawing Archives",
+    desc: "Decades of drawings, revisions and as-builts that labs cannot synthesize — licensed access, opened by introduction.",
     icon: "database",
   },
   {
-    title: "Technical Documentation & Reference Libraries",
-    desc: "Curated manuals, guides and reference material, appropriately licensed and permissioned.",
+    title: "Maintenance & Service Records",
+    desc: "Failure modes, repair histories and part swaps: the ground truth industrial models are starved for.",
     icon: "book",
   },
   {
-    title: "Licensed Industrial Knowledge Collections",
-    desc: "Themed knowledge products: drive selection, HMI troubleshooting, legacy migration playbooks.",
+    title: "Slack Threads & Email Archives",
+    desc: "Real troubleshooting conversations — how problems actually get solved on a floor, permissioned before anyone sees them.",
     icon: "layers",
   },
   {
-    title: "AI-Ready Technical Information",
-    desc: "Structured, machine-readable technical content prepared for authorized AI training and retrieval products.",
+    title: "AI-Ready Industrial Ground Truth",
+    desc: "Machine-readable archives prepared for authorized training and retrieval, with provenance attached.",
     icon: "cpu",
   },
   {
-    title: "Specialized Industry Knowledge Products",
-    desc: "Original educational content and tooling built on DO Supply's real domain expertise.",
-    icon: "graduation",
+    title: "Introductions, Not Sales",
+    desc: "You authorize the relationship; the lab pays the referral fee. Nothing changes hands behind your back.",
+    icon: "handshake",
   },
   {
-    title: "Partnerships with Legitimate AI Data Buyers",
-    desc: "Vetted, consent-based data licensing relationships with proper contracts and safeguards.",
-    icon: "handshake",
+    title: "Proceeds Fund Expansion",
+    desc: "Referral revenue goes back into inventory, service and reach — instead of dust collecting on a drive.",
+    icon: "graduation",
   },
 ];
