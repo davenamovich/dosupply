@@ -69,32 +69,6 @@ const LANGUAGES = [
 /* Helpers                                                             */
 /* ------------------------------------------------------------------ */
 
-/** Recursively collect image URLs from an unknown MCP payload. */
-function collectImages(value: unknown, depth = 0, seen = new Set<string>()): { url: string; label?: string }[] {
-  if (depth > 8 || seen.size > 40) return [];
-  if (typeof value === "string") {
-    if (/^https:\/\/\S+\.(png|jpe?g|webp|gif)(\?\S*)?$/i.test(value) && !seen.has(value)) {
-      seen.add(value);
-      return [{ url: value }];
-    }
-    return [];
-  }
-  if (Array.isArray(value)) {
-    return value.flatMap((v) => collectImages(v, depth + 1, seen));
-  }
-  if (value && typeof value === "object") {
-    const out: { url: string; label?: string }[] = [];
-    const obj = value as Record<string, unknown>;
-    if (typeof obj.url === "string" && /^https/i.test(obj.url) && /\.(png|jpe?g|webp|gif)(\?\S*)?$/i.test(obj.url) && !seen.has(obj.url)) {
-      seen.add(obj.url);
-      out.push({ url: obj.url, label: typeof obj.size === "string" ? obj.size : typeof obj.language === "string" ? obj.language : undefined });
-    }
-    for (const v of Object.values(obj)) out.push(...collectImages(v, depth + 1, seen));
-    return out;
-  }
-  return [];
-}
-
 /** Collect temp-page preview URLs. */
 function collectPageUrls(value: unknown, depth = 0, seen = new Set<string>()): string[] {
   if (depth > 8 || seen.size > 20) return [];
@@ -628,8 +602,16 @@ function MultilangTab({ mcpLive }: { mcpLive: boolean }) {
     setLoading(false);
   }
 
-  const images = result ? collectImages(result) : [];
   const pageUrls = result ? collectPageUrls(result) : [];
+  const vertical = result ? pickVerticalCreative(result) : null;
+
+  /* Deliver the vertical cut to the studio phone as soon as a batch lands. */
+  const lastPhoneRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!vertical || lastPhoneRef.current === vertical.url) return;
+    lastPhoneRef.current = vertical.url;
+    loadStudioPhone({ kind: "image", src: vertical.url, label: vertical.label });
+  }, [vertical?.url, vertical?.label]);
 
   return (
     <div className="panel rounded-2xl p-5 sm:p-6">
@@ -726,47 +708,24 @@ function MultilangTab({ mcpLive }: { mcpLive: boolean }) {
               Multilanguage batch returned — {langs.join(", ")}
             </span>
           </div>
-          {images.length > 0 ? (
-            <div className="grid gap-3 sm:grid-cols-3">
-              {images.slice(0, 12).map((img, i) => (
-                <div
-                  key={i}
-                  className="group relative overflow-hidden rounded-xl border border-white/10 bg-black/40"
-                >
-                  <a href={img.url} target="_blank" rel="noopener noreferrer">
-                    <img
-                      src={img.url}
-                      alt={`P&R MCP multilanguage creative ${i + 1}${img.label ? ` — ${img.label}` : ""}`}
-                      className="h-52 w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      loading="lazy"
-                    />
-                  </a>
-                  {img.label && (
-                    <span className="absolute bottom-2 left-2 rounded bg-black/70 px-1.5 py-0.5 font-mono text-[9px] uppercase text-zinc-200">
-                      {img.label}
-                    </span>
-                  )}
-                  <button
-                    onClick={() =>
-                      loadStudioPhone({
-                        kind: "image",
-                        src: img.url,
-                        label: img.label ?? "P&R multilang creative",
-                      })
-                    }
-                    className="absolute bottom-2 right-2 rounded-lg border border-teal-400/50 bg-black/80 px-2.5 py-1 font-mono text-[9px] uppercase tracking-wider text-teal-200 backdrop-blur transition-colors hover:bg-black"
-                    aria-label="Load this creative into the studio phone"
-                  >
-                    Load in phone
-                  </button>
-                </div>
-              ))}
-            </div>
-          ) : (
+          <div className="flex flex-wrap items-center gap-3">
             <p className="text-xs text-zinc-400">
-              No PNG assets detected in the payload — open the raw payload or preview links.
+              {vertical
+                ? "9:16 creative delivered to the studio phone."
+                : "No 9:16 creative in this batch — open a preview or the raw payload."}
             </p>
-          )}
+            {vertical && (
+              <button
+                onClick={() =>
+                  loadStudioPhone({ kind: "image", src: vertical.url, label: vertical.label })
+                }
+                className="rounded-lg border border-teal-400/50 bg-black/40 px-2.5 py-1 font-mono text-[9px] uppercase tracking-wider text-teal-200 transition-colors hover:bg-black"
+                aria-label="Load the 9:16 creative into the studio phone"
+              >
+                Load 9:16 in phone
+              </button>
+            )}
+          </div>
           {pageUrls.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-2">
               {pageUrls.slice(0, 6).map((u, i) => (
