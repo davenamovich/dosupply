@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChatMessage } from "@/lib/sales/types";
 import { Brand, DemoBadge, ProductCard, timeLabel } from "./shared";
 import { SCENARIOS, type Scenario } from "./scenarios";
+import { ALERT_GROUP_URL } from "@/lib/sales/links";
 
 type Mode = { inventory: "live" | "csv" | "demo"; alerts: "telegram" | "simulated" };
 
@@ -236,6 +237,21 @@ export default function SalesChat() {
             className="mt-4 block rounded-full bg-teal-400 px-4 py-2 text-center text-xs font-bold text-black transition hover:bg-teal-300"
           >
             Open sales dashboard
+          </a>
+        </div>
+
+        <div className="rounded-2xl border border-teal-400/30 bg-teal-400/5 p-4">
+          <h2 className="text-sm font-semibold text-zinc-100">Watch the Speed to Lead alert</h2>
+          <p className="mt-1 text-xs text-zinc-400">
+            Join the Telegram group, then run a conversation here. The alert reaches the sales team the moment the lead is ready.
+          </p>
+          <a
+            href={ALERT_GROUP_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-3 block rounded-full bg-teal-400 px-4 py-2 text-center text-xs font-bold text-black transition hover:bg-teal-300"
+          >
+            Join the Telegram group
           </a>
         </div>
 

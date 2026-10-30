@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { LEAD_STATUSES, type Lead, type LeadStatus } from "@/lib/sales/types";
 import TelegramPanel from "./telegram-panel";
+import { ALERT_GROUP_URL } from "@/lib/sales/links";
 import { Brand, DemoBadge, ProductCard } from "./shared";
 
 type Mode = { inventory: string; alerts: string };
@@ -136,6 +137,9 @@ export default function Dashboard() {
           <span className="flex items-center gap-1.5 rounded-full border border-white/10 bg-[#12151b] px-3 py-1 font-medium">
             Inventory: {mode?.inventory === "demo" ? "Simulated" : mode?.inventory} {mode?.inventory === "demo" && <DemoBadge />}
           </span>
+          <a href={ALERT_GROUP_URL} target="_blank" rel="noreferrer" className="font-semibold text-teal-300 hover:underline">
+            Join alert group
+          </a>
           <a href="/sales-agent" className="font-semibold text-amber-300 hover:underline">
             ← Back to chat
           </a>
