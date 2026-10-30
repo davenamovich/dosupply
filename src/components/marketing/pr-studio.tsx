@@ -166,8 +166,17 @@ function KeyCard({ status, icon }: { status: KeyStatus | undefined; icon: React.
       </p>
       {configured && status?.source && (
         <p className="mt-1 font-mono text-[9px] uppercase tracking-widest text-zinc-600">
-          source: {status.source}
-          {status.setAt ? ` · set ${new Date(status.setAt).toLocaleDateString()}` : ""}
+          {status.source === "runtime"
+            ? `source: runtime store${
+                status.setAt
+                  ? ` · saved ${new Date(status.setAt).toLocaleDateString()}`
+                  : ""
+              } · overrides ${
+                status.service === "plunder_riffle" ? "PLUNDER_RIFFLE_API_KEY" : "EXA_API_KEY"
+              }`
+            : `source: environment · ${
+                status.service === "plunder_riffle" ? "PLUNDER_RIFFLE_API_KEY" : "EXA_API_KEY"
+              }`}
         </p>
       )}
     </div>
