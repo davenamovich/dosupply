@@ -394,6 +394,28 @@ export default function PrStudio() {
 }
 
 /* ================================================================== */
+/* Elapsed-seconds clock for the Generate buttons                      */
+/* ================================================================== */
+
+/**
+ * Whole seconds since `startedAt`, or 0 when no run is in flight.
+ * The engine can take 70s+; a spinning icon with no number reads as stuck.
+ * Clamped at 0 so a stale timestamp from the previous run can never flash a
+ * leftover count on the first frame after the next click.
+ */
+function useElapsedSince(startedAt: number): number {
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!startedAt) return;
+    const id = window.setInterval(() => setNow(Date.now()), 250);
+    return () => window.clearInterval(id);
+  }, [startedAt]);
+
+  return startedAt ? Math.max(0, Math.floor((now - startedAt) / 1000)) : 0;
+}
+
+/* ================================================================== */
 /* Tab 1 — Ad Creative (generate_ad_creative / shop)                   */
 /* ================================================================== */
 
@@ -411,10 +433,12 @@ function CreativeTab({
   const [result, setResult] = useState<Record<string, unknown> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showRaw, setShowRaw] = useState(false);
+  const [startedAt, setStartedAt] = useState(0);
 
   async function generate(inputArg?: string) {
     const topic = (inputArg ?? input).trim();
     if (!topic) return;
+    setStartedAt(Date.now());
     setLoading(true);
     setError(null);
     setResult(null);
@@ -447,6 +471,7 @@ function CreativeTab({
     return () => window.clearTimeout(t);
   }, [request]);
 
+  const generateSeconds = useElapsedSince(loading ? startedAt : 0);
   const pageUrls = result ? collectPageUrls(result) : [];
   const vertical = result ? pickVerticalCreative(result) : null;
 
@@ -495,7 +520,9 @@ function CreativeTab({
             className="h-11 bg-teal-400 font-bold text-black hover:bg-teal-300"
           >
             {loading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <ImageIcon className="h-4 w-4" />}
-            <span className="ml-2">Generate</span>
+            <span className="ml-2 tabular-nums">
+              {loading ? `Generating · ${generateSeconds}s` : "Generate"}
+            </span>
           </Button>
           <div className="flex rounded-lg border border-white/10 p-0.5">
             {(["creative", "shop"] as const).map((k) => (
@@ -607,6 +634,7 @@ function MultilangTab({ mcpLive }: { mcpLive: boolean }) {
   const [result, setResult] = useState<Record<string, unknown> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showRaw, setShowRaw] = useState(false);
+  const [startedAt, setStartedAt] = useState(0);
 
   function toggleLang(l: string) {
     setLangs((prev) =>
@@ -615,6 +643,7 @@ function MultilangTab({ mcpLive }: { mcpLive: boolean }) {
   }
 
   async function generate() {
+    setStartedAt(Date.now());
     setLoading(true);
     setError(null);
     setResult(null);
@@ -628,6 +657,7 @@ function MultilangTab({ mcpLive }: { mcpLive: boolean }) {
     setLoading(false);
   }
 
+  const generateSeconds = useElapsedSince(loading ? startedAt : 0);
   const pageUrls = result ? collectPageUrls(result) : [];
   // The route names the asset; fall back to walking the payload if it didn't.
   const vertical =
@@ -695,7 +725,11 @@ function MultilangTab({ mcpLive }: { mcpLive: boolean }) {
           className="h-11 bg-teal-400 font-bold text-black hover:bg-teal-300"
         >
           {loading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Languages className="h-4 w-4" />}
-          <span className="ml-2">Generate {langs.length} Languages</span>
+          <span className="ml-2 tabular-nums">
+            {loading
+              ? `Generating ${langs.length} · ${generateSeconds}s`
+              : `Generate ${langs.length} Languages`}
+          </span>
         </Button>
       </div>
 
