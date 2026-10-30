@@ -20,6 +20,9 @@ import {
   Terminal,
   Eye,
   EyeOff,
+  Clapperboard,
+  Film,
+  Play,
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
@@ -167,8 +170,11 @@ function KeyCard({ status, icon }: { status: KeyStatus | undefined; icon: React.
 /* Main component                                                      */
 /* ================================================================== */
 
+const STUDIO_TABS = ["creative", "multilang", "video", "audio", "setup"] as const;
+
 export default function PrStudio() {
   const [status, setStatus] = useState<StatusData | null>(null);
+  const [tab, setTab] = useState<string>("creative");
   const { keys, refresh: refreshKeys } = useKeys();
 
   useEffect(() => {
@@ -176,6 +182,18 @@ export default function PrStudio() {
       .then((r) => r.json())
       .then((d: StatusData) => setStatus(d))
       .catch(() => {});
+  }, []);
+
+  /* Deep-link channel: window.dispatchEvent(new CustomEvent("pr-studio:tab", { detail: "video" })) */
+  useEffect(() => {
+    function onTabRequest(e: Event) {
+      const detail = (e as CustomEvent<string>).detail;
+      if (typeof detail === "string" && (STUDIO_TABS as readonly string[]).includes(detail)) {
+        setTab(detail);
+      }
+    }
+    window.addEventListener("pr-studio:tab", onTabRequest);
+    return () => window.removeEventListener("pr-studio:tab", onTabRequest);
   }, []);
 
   const mcpLive = status?.mcp.connected ?? false;
@@ -204,20 +222,21 @@ export default function PrStudio() {
             <span className="text-amber-glow">running on real MCP calls.</span>
           </h2>
           <p className="mt-4 text-zinc-400 leading-relaxed">
-            Ad creatives, native multilanguage campaigns and a voiced take — all
-            generated server-side through the Plunder &amp; Riffle MCP. Every result
-            is the engine&apos;s actual output, with its temp-page preview link. If a
-            call can&apos;t complete, you see the honest error — never a fake
-            success message.
+            Ad creatives, native multilanguage campaigns, a ~60s phone-demo
+            video and a voiced take — all generated server-side through the
+            Plunder &amp; Riffle MCP. Every result is the engine&apos;s actual output,
+            with its temp-page preview link. If a call can&apos;t complete, you see
+            the honest error — never a fake success message.
           </p>
         </div>
 
         <div className="mx-auto mt-10 max-w-5xl">
-          <Tabs defaultValue="creative" className="w-full">
-            <TabsList className="mx-auto grid w-full max-w-2xl grid-cols-2 gap-1 rounded-xl border border-white/10 bg-black/50 p-1 sm:grid-cols-4">
+          <Tabs value={tab} onValueChange={setTab} className="w-full">
+            <TabsList className="mx-auto grid w-full max-w-3xl grid-cols-2 gap-1 rounded-xl border border-white/10 bg-black/50 p-1 sm:grid-cols-3 lg:grid-cols-5">
               {[
                 { id: "creative", label: "Ad Creative", icon: ImageIcon },
-                { id: "multilang", label: "Multilanguage", icon: Languages },
+                { id: "multilang", label: "Multilang", icon: Languages },
+                { id: "video", label: "Video", icon: Clapperboard },
                 { id: "audio", label: "Audio Take", icon: AudioLines },
                 { id: "setup", label: "BYOK Setup", icon: KeyRound },
               ].map((t) => (
@@ -237,6 +256,9 @@ export default function PrStudio() {
             </TabsContent>
             <TabsContent value="multilang" className="mt-6">
               <MultilangTab mcpLive={mcpLive} />
+            </TabsContent>
+            <TabsContent value="video" className="mt-6">
+              <VideoTab mcpLive={mcpLive} />
             </TabsContent>
             <TabsContent value="audio" className="mt-6">
               <AudioTab mcpLive={mcpLive} />
@@ -606,7 +628,326 @@ function MultilangTab({ mcpLive }: { mcpLive: boolean }) {
 }
 
 /* ================================================================== */
-/* Tab 3 — Audio Take (create_one_minute + get_job_status polling)     */
+/* Tab 3 — Video Demo (create_phone_demo + get_job_status polling)     */
+/* ================================================================== */
+
+type VideoState = {
+  jobId: string | null;
+  status: string | null;
+  pageUrl: string | null;
+  error: string | null;
+};
+
+type Mp4State = {
+  jobId: string | null;
+  status: string | null;
+  mp4Url: string | null;
+  error: string | null;
+};
+
+function VideoTab({ mcpLive }: { mcpLive: boolean }) {
+  const [topic, setTopic] = useState(
+    "Why maintenance teams wait weeks for hard-to-find automation parts — and how DO Supply fixes it"
+  );
+  const [shape, setShape] = useState<"mixed" | "ranked">("mixed");
+  const [starting, setStarting] = useState(false);
+  const [video, setVideo] = useState<VideoState | null>(null);
+  const [mp4, setMp4] = useState<Mp4State | null>(null);
+  const [mp4Busy, setMp4Busy] = useState(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const mp4PollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const stopPolling = useCallback(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  }, []);
+
+  const stopMp4Polling = useCallback(() => {
+    if (mp4PollRef.current) {
+      clearInterval(mp4PollRef.current);
+      mp4PollRef.current = null;
+    }
+  }, []);
+
+  useEffect(
+    () => () => {
+      stopPolling();
+      stopMp4Polling();
+    },
+    [stopPolling, stopMp4Polling]
+  );
+
+  async function start() {
+    setStarting(true);
+    setMp4(null);
+    setVideo({ jobId: null, status: "starting", pageUrl: null, error: null });
+    const { ok, data } = await postJson<{
+      mode?: string;
+      jobId?: string | null;
+      status?: string;
+      pageUrl?: string | null;
+      error?: string;
+      code?: string;
+    }>("/api/mcp/video", { topic, shape });
+    if (ok && data.mode === "live") {
+      const st: VideoState = {
+        jobId: data.jobId ?? null,
+        status: data.status ?? "queued",
+        pageUrl: data.pageUrl ?? null,
+        error: null,
+      };
+      setVideo(st);
+      if (st.jobId) startPolling(st.jobId);
+    } else {
+      setVideo({
+        jobId: null,
+        status: null,
+        pageUrl: null,
+        error: (data.error as string) || "create_phone_demo failed.",
+      });
+    }
+    setStarting(false);
+  }
+
+  function startPolling(jobId: string) {
+    stopPolling();
+    pollRef.current = setInterval(async () => {
+      const { ok, data } = await postJson<{
+        status?: string;
+        pageUrl?: string | null;
+        error?: string | null;
+      }>("/api/mcp/job", { kind: "sitdown", jobId });
+      if (!ok) return; // transient — keep polling
+      setVideo((prev) =>
+        prev
+          ? {
+              ...prev,
+              status: data.status ?? prev.status,
+              pageUrl: data.pageUrl ?? prev.pageUrl,
+              error: data.error ?? prev.error,
+            }
+          : prev
+      );
+      if (data.status === "done" || data.status === "failed") stopPolling();
+    }, 15_000);
+  }
+
+  /** Human approval step — clicking IS the approval request_mp4 requires. */
+  async function requestMp4() {
+    if (!video?.pageUrl) return;
+    setMp4Busy(true);
+    setMp4({ jobId: null, status: "starting", mp4Url: null, error: null });
+    const { ok, data } = await postJson<{
+      mode?: string;
+      jobId?: string | null;
+      status?: string;
+      mp4Url?: string | null;
+      error?: string;
+      code?: string;
+    }>("/api/mcp/mp4", { pageUrl: video.pageUrl });
+    if (ok && data.mode === "live") {
+      const st: Mp4State = {
+        jobId: data.jobId ?? null,
+        status: data.status ?? "queued",
+        mp4Url: data.mp4Url ?? null,
+        error: null,
+      };
+      setMp4(st);
+      if (st.jobId && !st.mp4Url) startMp4Polling(st.jobId);
+    } else {
+      setMp4({
+        jobId: null,
+        status: null,
+        mp4Url: null,
+        error: (data.error as string) || "request_mp4 failed.",
+      });
+    }
+    setMp4Busy(false);
+  }
+
+  function startMp4Polling(jobId: string) {
+    stopMp4Polling();
+    mp4PollRef.current = setInterval(async () => {
+      const { ok, data } = await postJson<{
+        status?: string;
+        mp4Url?: string | null;
+        error?: string | null;
+      }>("/api/mcp/job", { kind: "mp4", jobId });
+      if (!ok) return; // transient — keep polling
+      setMp4((prev) =>
+        prev
+          ? {
+              ...prev,
+              status: data.status ?? prev.status,
+              mp4Url: data.mp4Url ?? prev.mp4Url,
+              error: data.error ?? prev.error,
+            }
+          : prev
+      );
+      if (data.status === "done" || data.status === "failed") stopMp4Polling();
+    }, 15_000);
+  }
+
+  const done = video?.status === "done";
+  const failed = video?.status === "failed";
+  const mp4Done = mp4?.status === "done" || !!mp4?.mp4Url;
+  const mp4Failed = mp4?.status === "failed";
+
+  return (
+    <div className="panel rounded-2xl p-5 sm:p-6">
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <Input
+          value={topic}
+          onChange={(e) => setTopic(e.target.value)}
+          placeholder="What should the ~60s video be about?"
+          className="h-11 flex-1 border-white/15 bg-black/50 font-mono text-sm text-zinc-100 placeholder:text-zinc-600 focus-visible:ring-amber-400/50"
+          aria-label="Video demo topic"
+        />
+        <Button
+          onClick={start}
+          disabled={starting || !topic.trim() || (video?.jobId != null && !done && !failed)}
+          className="h-11 bg-teal-400 font-bold text-black hover:bg-teal-300"
+        >
+          {starting ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Clapperboard className="h-4 w-4" />}
+          <span className="ml-2">Start Video Demo</span>
+        </Button>
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <span className="font-mono text-[10px] uppercase tracking-widest text-zinc-600">cut:</span>
+        {(["mixed", "ranked"] as const).map((s) => (
+          <button
+            key={s}
+            onClick={() => setShape(s)}
+            className={cn(
+              "rounded border px-2 py-1 font-mono text-[10px] uppercase tracking-wider transition-colors",
+              shape === s
+                ? "border-amber-400/60 bg-amber-400/10 text-amber-200"
+                : "border-white/10 text-zinc-500 hover:border-white/25 hover:text-zinc-300"
+            )}
+            title={
+              s === "mixed"
+                ? "memes, a ranked list or a carousel land on the host's phone"
+                : "a ranked list, read out by the host"
+            }
+          >
+            {s}
+          </button>
+        ))}
+      </div>
+
+      <p className="mt-3 font-mono text-[10px] text-zinc-600">
+        tool: create_phone_demo → get_job_status (kind sitdown) polled every 15s ·
+        the engine returns a captioned preview page; the MP4 renders only after
+        you approve it{!mcpLive && " · BYOK key not set yet (see BYOK Setup)"}
+      </p>
+
+      {video && (
+        <div
+          className={cn(
+            "mt-5 rounded-xl border p-4",
+            failed ? "border-red-400/30 bg-red-400/5" : done ? "border-teal-400/25 bg-teal-400/5" : "border-white/10 bg-black/30"
+          )}
+        >
+          {video.error ? (
+            <p className="text-sm text-red-300">{video.error}</p>
+          ) : (
+            <>
+              <div className="flex flex-wrap items-center gap-2">
+                <span
+                  className={cn(
+                    "h-2 w-2 rounded-full",
+                    done ? "bg-teal-400" : failed ? "bg-red-400" : "bg-amber-400 amber-dot"
+                  )}
+                />
+                <span className="font-mono text-xs uppercase tracking-widest text-zinc-300">
+                  video job: {video.status ?? "unknown"}
+                </span>
+                {video.jobId && (
+                  <span className="font-mono text-[10px] text-zinc-600">jobId: {video.jobId}</span>
+                )}
+              </div>
+              {(video.status === "rendering" || video.status === "queued" || video.status === "starting") && (
+                <p className="mt-2 text-xs text-amber-200/80">
+                  The engine is writing, voicing and shooting the ~60s phone demo — polling
+                  every 15s. Usually done in 1–2 minutes; the link below goes live as soon as
+                  the preview page exists.
+                </p>
+              )}
+
+              {/* THE video link — the point of this tab */}
+              {video.pageUrl && (
+                <div className="mt-4">
+                  <a
+                    href={video.pageUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 rounded-xl border border-amber-400/50 bg-amber-400/10 px-5 py-3 text-sm font-semibold text-amber-200 transition-colors hover:bg-amber-400/20 sm:text-base"
+                  >
+                    <Play className="h-4 w-4 fill-current" />
+                    {done ? "Watch the video — finished preview" : "Watch the video — live preview"}
+                    <ExternalLink className="h-3.5 w-3.5 opacity-70" />
+                  </a>
+                  <p className="mt-1.5 font-mono text-[10px] text-zinc-600">
+                    opens the engine&apos;s captioned preview page in a new tab
+                  </p>
+                </div>
+              )}
+
+              {done && video.pageUrl && (
+                <div className="mt-4 rounded-lg border border-white/10 bg-black/30 p-3.5">
+                  <p className="text-xs leading-relaxed text-zinc-400">
+                    Happy with the preview? Approving it unlocks an MP4 render — the
+                    engine&apos;s one explicit human-approval step. We never fire it
+                    automatically.
+                  </p>
+                  <div className="mt-2.5 flex flex-wrap items-center gap-2.5">
+                    <Button
+                      onClick={requestMp4}
+                      disabled={mp4Busy || (mp4 != null && !mp4Done && !mp4Failed)}
+                      className="h-9 bg-teal-400 font-bold text-black hover:bg-teal-300"
+                    >
+                      {mp4Busy ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Film className="h-3.5 w-3.5" />}
+                      <span className="ml-1.5">Approve &amp; render MP4</span>
+                    </Button>
+                    {mp4 && !mp4.error && (
+                      <span className="font-mono text-[10px] uppercase tracking-widest text-zinc-500">
+                        mp4 job: {mp4.status ?? "unknown"}
+                        {mp4.jobId ? ` · ${mp4.jobId}` : ""}
+                      </span>
+                    )}
+                  </div>
+                  {mp4?.error && <p className="mt-2 text-xs text-red-300">{mp4.error}</p>}
+                  {mp4?.status === "rendering" && (
+                    <p className="mt-2 text-xs text-amber-200/80">
+                      Rendering the MP4 — usually 1–3 minutes; polling every 15s.
+                    </p>
+                  )}
+                  {mp4Done && mp4?.mp4Url && (
+                    <a
+                      href={mp4.mp4Url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-3 inline-flex items-center gap-2 rounded-lg border border-teal-400/40 bg-teal-400/10 px-4 py-2.5 text-sm font-semibold text-teal-200 transition-colors hover:bg-teal-400/20"
+                    >
+                      <Film className="h-4 w-4" /> Open the rendered MP4
+                      <ExternalLink className="h-3.5 w-3.5 opacity-70" />
+                    </a>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ================================================================== */
+/* Tab 4 — Audio Take (create_one_minute + get_job_status polling)     */
 /* ================================================================== */
 
 type AudioState = {
@@ -780,7 +1121,7 @@ function AudioTab({ mcpLive }: { mcpLive: boolean }) {
 }
 
 /* ================================================================== */
-/* Tab 4 — BYOK Setup                                                  */
+/* Tab 5 — BYOK Setup                                                  */
 /* ================================================================== */
 
 function SetupTab({

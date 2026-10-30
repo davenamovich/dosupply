@@ -9,6 +9,7 @@ import Roadmap from "@/components/marketing/roadmap";
 import FinalCta from "@/components/marketing/final-cta";
 import EasterEgg from "@/components/marketing/easter-egg";
 import Footer from "@/components/marketing/footer";
+import WelcomeOverlay from "@/components/marketing/welcome-overlay";
 
 export default function Page() {
   return (
@@ -26,6 +27,7 @@ export default function Page() {
         <EasterEgg />
       </main>
       <Footer />
+      <WelcomeOverlay />
     </div>
   );
 }
