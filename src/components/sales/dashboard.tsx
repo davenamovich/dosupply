@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { LEAD_STATUSES, type Lead, type LeadStatus } from "@/lib/sales/types";
+import type { TelegramCheck } from "@/lib/sales/telegram";
 import { Brand, DemoBadge, ProductCard } from "./shared";
 
 type Mode = { inventory: string; alerts: string };
@@ -40,6 +41,7 @@ export default function Dashboard() {
   const [locked, setLocked] = useState<false | "needs" | "wrong">(false);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [tgReport, setTgReport] = useState<TelegramCheck | "checking" | null>(null);
 
   const headers = useCallback(
     (code: string): HeadersInit => (code ? { "x-dashboard-passcode": code } : {}),
@@ -89,6 +91,16 @@ export default function Dashboard() {
     setBusy(false);
   };
 
+  const checkTelegram = async (send: boolean) => {
+    setTgReport("checking");
+    const res = await fetch("/api/sales/telegram-check", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...headers(passcode) },
+      body: JSON.stringify({ send }),
+    });
+    setTgReport(res.ok ? await res.json() : { configured: false, problem: "Could not run the check (unauthorized or server error)." });
+  };
+
   const selected = leads.find((l) => l.id === selectedId) || null;
 
   if (locked) {
@@ -135,11 +147,35 @@ export default function Dashboard() {
           <span className="flex items-center gap-1.5 rounded-full border border-white/10 bg-[#12151b] px-3 py-1 font-medium">
             Inventory: {mode?.inventory === "demo" ? "Simulated" : mode?.inventory} {mode?.inventory === "demo" && <DemoBadge />}
           </span>
+          <button
+            onClick={() => checkTelegram(true)}
+            disabled={tgReport === "checking"}
+            className="rounded-full border border-teal-400/40 bg-teal-400/10 px-3 py-1 font-semibold text-teal-200 transition hover:bg-teal-400/20 disabled:opacity-50"
+          >
+            {tgReport === "checking" ? "Testing…" : "Test Telegram"}
+          </button>
           <a href="/sales-agent" className="font-semibold text-amber-300 hover:underline">
             ← Back to chat
           </a>
         </div>
       </header>
+
+      {tgReport && tgReport !== "checking" && (
+        <div
+          className={`mb-5 rounded-xl border px-4 py-3 text-sm ${
+            tgReport.sent ? "border-teal-400/40 bg-teal-400/10 text-teal-100" : tgReport.problem ? "border-rose-400/40 bg-rose-400/10 text-rose-100" : "border-white/10 bg-[#12151b] text-zinc-200"
+          }`}
+        >
+          {tgReport.sent && (
+            <p className="font-semibold">
+              Test alert delivered to {tgReport.chat?.title || "the chat"} ({tgReport.chat?.type}, ID {tgReport.chat?.id}) as {tgReport.bot}. Check Telegram.
+            </p>
+          )}
+          {tgReport.problem && <p className="font-semibold">{tgReport.problem}</p>}
+          {tgReport.hint && <p className="mt-1 text-xs opacity-80">{tgReport.hint}</p>}
+          {tgReport.bot && !tgReport.sent && !tgReport.problem && <p>Bot {tgReport.bot} can see the chat.</p>}
+        </div>
+      )}
 
       {!loaded ? (
         <p className="text-sm text-zinc-400">Loading…</p>
