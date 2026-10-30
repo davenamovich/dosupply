@@ -8,10 +8,28 @@ const LINKS = [
   { href: "#command-center", label: "Command Center" },
   { href: "#live-demo", label: "Live Demo" },
   { href: "#pr-studio", label: "P&R Studio" },
-  { href: "/sales-agent", label: "Sales Agent" },
   { href: "#roadmap", label: "30-Day Plan" },
   { href: "#final", label: "Contact" },
 ];
+
+/** The sales agent entry point: a pill with a glowing orb so it stands out from the plain links. */
+function SalesAgentLink({ compact = false, onClick }: { compact?: boolean; onClick?: () => void }) {
+  return (
+    <a
+      href="/sales-agent"
+      onClick={onClick}
+      aria-label="Talk to the Sales Agent"
+      className="group inline-flex items-center gap-2.5 rounded-full border border-teal-400/40 bg-teal-400/10 py-1.5 pl-2.5 pr-3.5 text-xs font-semibold text-teal-100 shadow-[0_0_24px_rgba(45,212,191,0.25)] transition hover:border-teal-300/70 hover:bg-teal-400/20 hover:shadow-[0_0_32px_rgba(45,212,191,0.45)]"
+    >
+      <span className="relative flex h-3.5 w-3.5 items-center justify-center" aria-hidden="true">
+        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-teal-300/70" />
+        <span className="absolute -inset-1.5 rounded-full bg-teal-400/40 blur-md" />
+        <span className="relative h-2.5 w-2.5 rounded-full bg-[radial-gradient(circle_at_35%_35%,#ccfbf1,#2dd4bf_55%,#0d9488)] shadow-[0_0_10px_3px_rgba(45,212,191,0.8)]" />
+      </span>
+      <span className={compact ? "hidden sm:inline" : undefined}>Sales Agent</span>
+    </a>
+  );
+}
 
 export default function Nav() {
   const [scrolled, setScrolled] = useState(false);
@@ -54,8 +72,13 @@ export default function Nav() {
           ))}
         </nav>
 
-        <div className="hidden md:block">
+        <div className="hidden items-center gap-3 md:flex">
+          <SalesAgentLink />
           <McpStatusPill />
+        </div>
+
+        <div className="ml-auto md:hidden">
+          <SalesAgentLink compact />
         </div>
 
         <button
