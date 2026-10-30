@@ -1,0 +1,353 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  /* Industrial palette */
+  --color-amber-glow: var(--amber);
+  --color-teal-glow: var(--teal);
+  --color-graphite: var(--graphite);
+  --color-panel: var(--panel);
+}
+
+:root {
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+  /* Industrial palette */
+  --amber: #ffb000;
+  --teal: #2dd4bf;
+  --graphite: #0a0b0d;
+  --panel: #12151b;
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* ================================================================== */
+/* Industrial design system                                            */
+/* ================================================================== */
+
+.industrial {
+  background-color: #0a0b0d;
+  color: #f4f5f7;
+  min-height: 100vh;
+}
+
+/* Blueprint grid backdrop */
+.industrial-grid-bg {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+/* Radial amber/teal atmospheres */
+.atmosphere-amber {
+  background: radial-gradient(
+    ellipse 55% 45% at 78% 30%,
+    rgba(255, 176, 0, 0.11),
+    transparent 65%
+  );
+}
+.atmosphere-teal {
+  background: radial-gradient(
+    ellipse 45% 40% at 15% 75%,
+    rgba(45, 212, 191, 0.07),
+    transparent 65%
+  );
+}
+
+.panel {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.015));
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  backdrop-filter: blur(12px);
+}
+.panel-solid {
+  background: #101318;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.text-amber-glow {
+  color: #ffb000;
+  text-shadow: 0 0 22px rgba(255, 176, 0, 0.45);
+}
+.text-teal-glow {
+  color: #2dd4bf;
+}
+
+.glow-amber {
+  box-shadow:
+    0 0 0 1px rgba(255, 176, 0, 0.25),
+    0 0 32px rgba(255, 176, 0, 0.18);
+}
+
+.kicker {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.6875rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+/* ------------------------- Beveled phone ------------------------- */
+.phone-bevel {
+  position: relative;
+  width: 300px;
+  height: 610px;
+  border-radius: 44px;
+  background: linear-gradient(145deg, #3d434d 0%, #14171c 18%, #0b0d10 45%, #2a2f38 80%, #454c58 100%);
+  padding: 14px;
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.28),
+    inset 0 -1px 2px rgba(255, 255, 255, 0.1),
+    inset 1px 0 1px rgba(255, 255, 255, 0.12),
+    inset -1px 0 1px rgba(0, 0, 0, 0.6),
+    0 34px 68px -18px rgba(0, 0, 0, 0.85),
+    0 0 90px -18px rgba(255, 176, 0, 0.4);
+}
+.phone-bevel::before {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  border-radius: 40px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  pointer-events: none;
+}
+.phone-screen {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 32px;
+  background: #05070a;
+  overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, 0.9);
+  box-shadow: inset 0 0 22px rgba(0, 0, 0, 0.85);
+}
+.phone-notch {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 96px;
+  height: 26px;
+  border-radius: 14px;
+  background: #05070a;
+  z-index: 30;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.phone-gloss {
+  position: absolute;
+  inset: 0;
+  border-radius: 32px;
+  background: linear-gradient(115deg, rgba(255, 255, 255, 0.09) 0%, transparent 28%, transparent 72%, rgba(255, 255, 255, 0.045) 100%);
+  pointer-events: none;
+  z-index: 25;
+}
+
+/* Auto-scrolling feed inside the phone */
+.feed-scroll {
+  animation: feed-scroll 36s linear infinite;
+}
+.feed-scroll:hover {
+  animation-play-state: paused;
+}
+@keyframes feed-scroll {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-50%); }
+}
+.feed-mask {
+  mask-image: linear-gradient(to bottom, transparent 0%, black 16%, black 88%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 16%, black 88%, transparent 100%);
+}
+
+/* ------------------------- Ticker ------------------------- */
+.ticker-track {
+  animation: ticker 30s linear infinite;
+}
+@keyframes ticker {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+/* ------------------------- Pulses & blips ------------------------- */
+.live-dot {
+  position: relative;
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: #2dd4bf;
+}
+.live-dot::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 9999px;
+  border: 1.5px solid rgba(45, 212, 191, 0.7);
+  animation: live-ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+@keyframes live-ping {
+  0% { transform: scale(0.6); opacity: 1; }
+  80%, 100% { transform: scale(1.9); opacity: 0; }
+}
+.amber-dot {
+  background: #ffb000;
+  animation: amber-blink 1.4s ease-in-out infinite;
+}
+@keyframes amber-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+
+/* ------------------------- Scrollbars ------------------------- */
+.scroll-slim {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 176, 0, 0.35) rgba(255, 255, 255, 0.04);
+}
+.scroll-slim::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scroll-slim::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 6px;
+}
+.scroll-slim::-webkit-scrollbar-thumb {
+  background: rgba(255, 176, 0, 0.35);
+  border-radius: 6px;
+}
+.scroll-slim::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 176, 0, 0.55);
+}
+
+/* ------------------------- Utility ------------------------- */
+.hairline {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.14), transparent);
+  height: 1px;
+}
+.noise-overlay::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Card hover lift */
+.lift {
+  transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.25s, border-color 0.25s;
+}
+.lift:hover {
+  transform: translateY(-3px);
+  border-color: rgba(255, 176, 0, 0.35);
+  box-shadow: 0 14px 40px -18px rgba(255, 176, 0, 0.25);
+}
+
+/* Typing caret for terminal vibes */
+.caret::after {
+  content: "▌";
+  color: #ffb000;
+  animation: amber-blink 1s steps(2) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .feed-scroll,
+  .ticker-track {
+    animation: none;
+  }
+}
