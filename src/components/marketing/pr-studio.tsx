@@ -1414,8 +1414,8 @@ function SetupTab({
         <p className="text-xs leading-relaxed text-amber-100/80">
           <strong className="font-semibold">BYOK — bring your own key.</strong> Keys are
           stored server-side only and never sent back to the browser — the UI shows a
-          masked preview only. P&amp;R keys are verified with a real{" "}
-          <code className="font-mono">tools/list</code> probe before being saved. The setup
+          masked preview only. P&amp;R keys are verified with a real auth-gated{" "}
+          <code className="font-mono">get_account</code> call before being saved. The setup
           passcode comes from the{" "}
           <code className="font-mono text-amber-200">ADMIN_PASSCODE</code> environment
           variable.
@@ -1459,7 +1459,7 @@ function SetupTab({
                 value: exaKey,
                 set: setExaKey,
                 placeholder: "uuid-…",
-                hint: "Enables Exa neural web research (api.exa.ai) for grounded SEO + content. Without it, the built-in SDK web search is used.",
+                hint: "Enables Exa neural web research (api.exa.ai) for grounded SEO + content. Without it, research falls back to TinyFish search (needs TINYFISH_API_KEY).",
               },
             ] as const
           ).map((f) => (

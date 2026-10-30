@@ -23,7 +23,7 @@ export default function ModuleSeo() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<SeoOutput | null>(null);
 
-  // Web research (Exa BYOK → built-in SDK web search fallback)
+  // Web research (Exa BYOK → TinyFish search fallback)
   const [research, setResearch] = useState<ResearchResult[] | null>(null);
   const [researchProvider, setResearchProvider] = useState<string | null>(null);
   const [researchLoading, setResearchLoading] = useState(false);
