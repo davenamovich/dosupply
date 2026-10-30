@@ -186,17 +186,17 @@ function pickVideo(result: Record<string, unknown>): string | null {
 
 /**
  * What the studio phone should show for a creative run: a video when the run
- * produced one, else the 9:16 cut (named by the route, or found in the
- * payload), else the engine's rendered page (which the preview proxy fits to
- * the phone screen).
+ * produced one, else the engine's temp page (the animated meme, fitted to the
+ * phone by the preview proxy), else the 9:16 still (named by the route, or
+ * found in the payload).
  */
 function pickPhoneContent(result: Record<string, unknown>, pageUrls: string[]): PhoneContent | null {
   const video = pickVideo(result);
   if (video) return { kind: "video", src: video, label: "P&R creative · video" };
+  if (pageUrls[0]) return { kind: "page", src: pageUrls[0], label: "P&R creative · rendered page" };
   const vertical =
     (result.vertical as { url: string; label: string } | null | undefined) ?? pickVerticalCreative(result);
   if (vertical) return { kind: "image", src: vertical.url, label: vertical.label };
-  if (pageUrls[0]) return { kind: "page", src: pageUrls[0], label: "P&R creative · rendered page" };
   return null;
 }
 
