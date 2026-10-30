@@ -112,6 +112,44 @@ function collectPageUrls(value: unknown, depth = 0, seen = new Set<string>()): s
   return [];
 }
 
+/**
+ * Pick the vertical 9:16 cut out of an MCP creative payload, so the studio
+ * phone receives the one asset that fits a phone screen.
+ */
+function pickVerticalCreative(
+  result: Record<string, unknown>
+): { url: string; label: string } | null {
+  const found: { url: string; hint: string }[] = [];
+  const walk = (v: unknown, depth: number) => {
+    if (depth > 8 || !v) return;
+    if (Array.isArray(v)) {
+      for (const x of v) walk(x, depth + 1);
+      return;
+    }
+    if (typeof v !== "object") return;
+    const o = v as Record<string, unknown>;
+    if (typeof o.url === "string" && /^https:\/\/\S+\.(png|jpe?g|webp)(\?\S*)?$/i.test(o.url)) {
+      const w = typeof o.width === "number" ? o.width : null;
+      const h = typeof o.height === "number" ? o.height : null;
+      const hint = [o.format, o.label, o.size, o.aspect]
+        .filter((x): x is string => typeof x === "string")
+        .join(" ")
+        .toLowerCase();
+      found.push({ url: o.url, hint: w && h ? `${hint} ${w}x${h}` : hint });
+    }
+    for (const x of Object.values(o)) walk(x, depth + 1);
+  };
+  walk(result, 0);
+
+  const explicit = found.find((f) => /9\s*[:x/]\s*16|story|vertical|reel|shorts/.test(f.hint));
+  const byRatio = found.find((f) => {
+    const m = f.hint.match(/(\d{3,4})x(\d{3,4})/);
+    return m ? Number(m[2]) / Number(m[1]) > 1.2 : false;
+  });
+  const pick = explicit ?? byRatio;
+  return pick ? { url: pick.url, label: "9:16 creative" } : null;
+}
+
 function stringifyPayload(v: unknown): string {
   try {
     return JSON.stringify(v, null, 2);
@@ -409,8 +447,16 @@ function CreativeTab({
     return () => window.clearTimeout(t);
   }, [request]);
 
-  const images = result ? collectImages(result) : [];
   const pageUrls = result ? collectPageUrls(result) : [];
+  const vertical = result ? pickVerticalCreative(result) : null;
+
+  /* Deliver the vertical cut to the studio phone as soon as a run lands. */
+  const lastPhoneRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!vertical || lastPhoneRef.current === vertical.url) return;
+    lastPhoneRef.current = vertical.url;
+    loadStudioPhone({ kind: "image", src: vertical.url, label: vertical.label });
+  }, [vertical?.url, vertical?.label]);
 
   return (
     <div className="panel rounded-2xl p-5 sm:p-6">
@@ -471,7 +517,7 @@ function CreativeTab({
 
       <p className="mt-3 font-mono text-[10px] text-zinc-600">
         tool: {kind === "shop" ? "shop" : "generate_ad_creative"} · returns the MCP&apos;s temp-page
-        preview + PNG assets + post copy exactly as produced
+        preview + the 9:16 creative + post copy exactly as produced
         {!mcpLive && " · BYOK key not set yet (see BYOK Setup)"}
       </p>
 
@@ -498,40 +544,24 @@ function CreativeTab({
               meme-engine · {new Date().toLocaleTimeString()}
             </span>
           </div>
-          {images.length > 0 ? (
-            <div className="grid gap-3 sm:grid-cols-3">
-              {images.slice(0, 6).map((img, i) => (
-                <div
-                  key={i}
-                  className="group relative overflow-hidden rounded-xl border border-white/10 bg-black/40"
-                >
-                  <a href={img.url} target="_blank" rel="noopener noreferrer">
-                    <img
-                      src={img.url}
-                      alt={`P&R MCP generated creative ${i + 1}`}
-                      className="h-52 w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      loading="lazy"
-                    />
-                  </a>
-                  <button
-                    onClick={() =>
-                      loadStudioPhone({
-                        kind: "image",
-                        src: img.url,
-                        label: img.label ?? "P&R creative",
-                      })
-                    }
-                    className="absolute bottom-2 right-2 rounded-lg border border-teal-400/50 bg-black/80 px-2.5 py-1 font-mono text-[9px] uppercase tracking-wider text-teal-200 backdrop-blur transition-colors hover:bg-black"
-                    aria-label="Load this creative into the studio phone"
-                  >
-                    Load in phone
-                  </button>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-xs text-zinc-400">No PNG assets in this run — check the raw payload below.</p>
-          )}
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="text-xs text-zinc-400">
+              {vertical
+                ? "9:16 creative delivered to the studio phone."
+                : "No 9:16 creative in this run — check the raw payload below."}
+            </p>
+            {vertical && (
+              <button
+                onClick={() =>
+                  loadStudioPhone({ kind: "image", src: vertical.url, label: vertical.label })
+                }
+                className="rounded-lg border border-teal-400/50 bg-black/40 px-2.5 py-1 font-mono text-[9px] uppercase tracking-wider text-teal-200 transition-colors hover:bg-black"
+                aria-label="Load the 9:16 creative into the studio phone"
+              >
+                Load 9:16 in phone
+              </button>
+            )}
+          </div>
           {pageUrls.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-2">
               {pageUrls.slice(0, 3).map((u, i) => (
