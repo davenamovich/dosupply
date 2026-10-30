@@ -1,6 +1,6 @@
 import { mkdir, readFile, rename, writeFile } from "fs/promises";
 import path from "path";
-import type { Lead, Session } from "./types";
+import type { Lead, Session, TelegramChat } from "./types";
 
 /**
  * Lead database.
@@ -15,7 +15,7 @@ import type { Lead, Session } from "./types";
  * a demo.
  */
 
-type Shape = { leads: Lead[]; sessions: Session[] };
+type Shape = { leads: Lead[]; sessions: Session[]; telegramChats: TelegramChat[] };
 
 // SALES_DATA_DIR lets a mounted volume (e.g. /data on Railway) hold the leads file.
 const FILE = path.join(process.env.SALES_DATA_DIR?.trim() || path.join(process.cwd(), "db"), "sales-leads.json");
@@ -26,9 +26,9 @@ let queue: Promise<unknown> = Promise.resolve();
 async function read(): Promise<Shape> {
   try {
     const data = JSON.parse(await readFile(FILE, "utf8")) as Partial<Shape>;
-    return { leads: data.leads || [], sessions: data.sessions || [] };
+    return { leads: data.leads || [], sessions: data.sessions || [], telegramChats: data.telegramChats || [] };
   } catch {
-    return { leads: [], sessions: [] };
+    return { leads: [], sessions: [], telegramChats: [] };
   }
 }
 
@@ -64,3 +64,28 @@ export const listLeads = () =>
   readOnly((d) => [...d.leads].sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
 
 export const getLead = (id: string) => readOnly((d) => d.leads.find((l) => l.id === id) || null);
+
+/* Telegram chats that asked to receive lead alerts (see telegram-connect.ts). */
+export const listChats = () => readOnly((d) => [...d.telegramChats]);
+
+export const addChat = (chat: Omit<TelegramChat, "connectedAt">) =>
+  transact((d) => {
+    const existing = d.telegramChats.find((c) => c.id === chat.id);
+    if (existing) Object.assign(existing, chat);
+    else d.telegramChats.push({ ...chat, connectedAt: new Date().toISOString() });
+    return d.telegramChats.length;
+  });
+
+export const removeChat = (id: string) =>
+  transact((d) => {
+    const before = d.telegramChats.length;
+    d.telegramChats = d.telegramChats.filter((c) => c.id !== id);
+    return before !== d.telegramChats.length;
+  });
+
+/** A group that is upgraded to a supergroup gets a new ID; carry the subscription over. */
+export const replaceChatId = (from: string, to: string) =>
+  transact((d) => {
+    const c = d.telegramChats.find((x) => x.id === from);
+    if (c) c.id = to;
+  });

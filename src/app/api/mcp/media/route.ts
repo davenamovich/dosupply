@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { clientIp, rateLimit } from "@/lib/ai";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -107,6 +108,8 @@ function jsonError(error: string, status: number) {
 }
 
 export async function GET(req: NextRequest) {
+  // Video playback makes many Range requests, so this is generous; it only stops hammering.
+  if (!rateLimit(`media:${clientIp(req)}`, 300, 60_000)) return jsonError("Too many requests.", 429);
   const rawUrl = req.nextUrl.searchParams.get("url");
   if (!rawUrl) return jsonError("url query param is required.", 400);
 

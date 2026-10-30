@@ -1,3 +1,4 @@
+import { globalLimit, rateLimit } from "@/lib/ai";
 import { itemLabel, msg, newSession, step, type Reply } from "./engine";
 import { transact } from "./store";
 import { formatLeadMessage, notifyLead, retryFailedAlerts, telegramConfigured } from "./telegram";
@@ -135,7 +136,7 @@ export async function loadOrStart(sessionId?: string): Promise<Session> {
   return (await startSession()).session;
 }
 
-export async function processMessage(sessionId: string | undefined, text: string): Promise<TurnOutput> {
+export async function processMessage(sessionId: string | undefined, text: string, ip = "local"): Promise<TurnOutput> {
   const session = await loadOrStart(sessionId);
   if (session.messages.length >= MAX_MESSAGES) {
     const note = msg("assistant", "This conversation has gotten long. Please start a new chat, or say \"talk to sales\" and a rep will follow up directly.");
@@ -151,6 +152,16 @@ export async function processMessage(sessionId: string | undefined, text: string
   let alert: Lead["telegram"]["status"] | undefined;
 
   if (result.ready && !session.leadId) {
+    // Each new lead fires a Telegram alert, so cap them per address and overall.
+    if (!rateLimit(`sales-lead:${ip}`, 40, 3_600_000) || !globalLimit("sales-lead", 150)) {
+      const note = msg(
+        "assistant",
+        "I can't submit another request from this connection right now. Please try again in a little while, or contact the DO Supply sales team directly."
+      );
+      session.messages.push(...out, note);
+      await persist(session);
+      return { sessionId: session.id, messages: [...out, note], humanRequested: session.humanRequested };
+    }
     // Persist the transcript so far, then create the lead and fire the alert immediately.
     session.messages.push(...out);
     const { lead, created } = await upsertLead(session);
@@ -191,6 +202,6 @@ async function persist(s: Session) {
   });
 }
 
-export function alertMode(): "telegram" | "simulated" {
-  return telegramConfigured() ? "telegram" : "simulated";
+export async function alertMode(): Promise<"telegram" | "simulated"> {
+  return (await telegramConfigured()) ? "telegram" : "simulated";
 }

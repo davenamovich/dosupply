@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import { clientIp, rateLimit } from "@/lib/ai";
 import { searchInventory } from "@/lib/sales/inventory";
 
 export const dynamic = "force-dynamic";
 
 /** GET /api/sales/inventory?pn=1756-L83E&manufacturer=Allen-Bradley&q=plc */
 export async function GET(req: NextRequest) {
+  if (!rateLimit(`sales-inventory:${clientIp(req)}`, 60, 60_000)) {
+    return NextResponse.json({ error: "Too many requests." }, { status: 429 });
+  }
   const p = req.nextUrl.searchParams;
   const q = {
     partNumber: p.get("pn")?.slice(0, 60) || undefined,

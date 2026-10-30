@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { callMcpTool, mcpKeyConfigured } from "@/lib/mcp/client";
-import { rateLimit } from "@/lib/ai";
+import { BUSY_RESPONSE, clientIp, globalLimit, rateLimit } from "@/lib/ai";
 import { bumpStat } from "@/lib/session-stats";
 
 export const dynamic = "force-dynamic";
@@ -18,16 +18,19 @@ type OneMinuteStart = {
  * body: { topic: string }
  * Calls P&R MCP create_one_minute — writes + voices a ~60s captioned take.
  * Returns a jobId for polling via /api/mcp/job (kind "one_minute").
- * Per the tool schema: the result is a page preview; MP4 rendering is a
- * separate approval-gated step (request_mp4) we do NOT auto-trigger.
+ * Per the tool schema: the result is a page preview. This app does not
+ * render MP4s.
  */
 export async function POST(req: NextRequest) {
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0] || "local";
-  if (!rateLimit(ip, 8, 60_000)) {
+  const ip = clientIp(req);
+  if (!rateLimit(`audio:${ip}`, 8, 60_000)) {
     return NextResponse.json(
       { error: "Narration generation rate limit reached.", code: "rate" },
       { status: 429 }
     );
+  }
+  if (!globalLimit("audio", 20)) {
+    return NextResponse.json(BUSY_RESPONSE, { status: 429 });
   }
 
   let body: { topic?: string; title?: string };

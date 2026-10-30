@@ -28,20 +28,6 @@ export const VIDEO_RENDER_JOKES = [
   "Engineering definition of “soon”: right after the next compile.",
 ];
 
-/** MP4 render (request_mp4, human-approved). */
-export const MP4_RENDER_JOKES = [
-  "Rendering the MP4 — the one step a human has to sign off on. You're the human.",
-  "Interlacing responsibly. Deinterlacing the jokes.",
-  "Bitrate budget approved by accounting (it's fine, bits are cheap).",
-  "Export settings: H.264, 60 seconds of pure need-it-now energy.",
-  "Compressing 60 seconds into 60 seconds. Science.",
-  "The encoder is meticulous. The encoder is also a little dramatic.",
-  "Rendering… because autoplay thumbnails don't make themselves.",
-  "Final QC: checking the video is not, in fact, a screensaver.",
-  "Fun fact: “render” comes from Latin “to render”. Check back later.",
-  "Stamping the virtual slate: DO SUPPLY × P&R — take one.",
-];
-
 /** Audio take (create_one_minute). */
 export const AUDIO_RENDER_JOKES = [
   "Warming up the virtual vocal cords. Hydrating them with electricity.",

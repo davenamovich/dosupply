@@ -1,10 +1,13 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { BUSY_RESPONSE, clientIp, rateLimit } from "@/lib/ai";
 import { probeMcpStatus, mcpUrl } from "@/lib/mcp/client";
 import { keyStatus } from "@/lib/runtime-keys";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  // Each call probes the P&R engine, so keep it cheap.
+  if (!rateLimit(`status:${clientIp(req)}`, 30, 60_000)) return NextResponse.json(BUSY_RESPONSE, { status: 429 });
   const status = await probeMcpStatus();
   const [prKey, exaKey] = await Promise.all([
     keyStatus("plunder_riffle"),

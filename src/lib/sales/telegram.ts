@@ -1,4 +1,4 @@
-import { transact } from "./store";
+import { listChats, readOnly, removeChat, transact } from "./store";
 import type { Lead, LookupResult } from "./types";
 
 /**
@@ -15,10 +15,17 @@ const MAX_TOTAL_ATTEMPTS = 8;
 const RETRY_AFTER_MS = 60_000;
 const inFlight = new Set<string>();
 
-export function telegramConfigured(): boolean {
-  return Boolean(
-    (process.env.TELEGRAM_BOT_TOKEN || "").trim() && (process.env.TELEGRAM_CHAT_ID || "").trim()
-  );
+/** Chats that receive alerts: those connected from the dashboard, plus TELEGRAM_CHAT_ID if set. */
+export async function destinations(): Promise<string[]> {
+  const ids = (await listChats()).map((c) => c.id);
+  const env = (process.env.TELEGRAM_CHAT_ID || "").trim();
+  if (env && !ids.includes(env)) ids.push(env);
+  return ids;
+}
+
+export async function telegramConfigured(): Promise<boolean> {
+  if (!(process.env.TELEGRAM_BOT_TOKEN || "").trim()) return false;
+  return (await destinations()).length > 0;
 }
 
 const dash = (v?: string | number) => (v === undefined || v === "" ? "Not provided" : String(v));
@@ -84,16 +91,20 @@ export function formatLeadMessage(lead: Lead): string {
   return text.length > 4000 ? text.slice(0, 3990) + "\n…" : text;
 }
 
+/** TELEGRAM_API_BASE exists so tests can point at a local fake; production uses Telegram. */
+function apiBase(): string {
+  return process.env.TELEGRAM_API_BASE?.trim() || "https://api.telegram.org";
+}
+
 function scrub(message: string): string {
   const token = (process.env.TELEGRAM_BOT_TOKEN || "").trim();
   return token ? message.split(token).join("[token]") : message;
 }
 
-async function sendOnce(text: string): Promise<{ ok: boolean; error?: string; retryAfterMs?: number }> {
+async function sendOnce(chatId: string, text: string): Promise<{ ok: boolean; error?: string; retryAfterMs?: number }> {
   const token = (process.env.TELEGRAM_BOT_TOKEN || "").trim();
-  const chatId = (process.env.TELEGRAM_CHAT_ID || "").trim();
   try {
-    const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    const res = await fetch(`${apiBase()}/bot${token}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ chat_id: chatId, text, disable_web_page_preview: true }),
@@ -137,7 +148,8 @@ export async function notifyLead(leadId: string, opts: { force?: boolean } = {})
 
     const text = lead.telegram.message || formatLeadMessage(lead);
 
-    if (!telegramConfigured()) {
+    const chats = await destinations();
+    if (!(process.env.TELEGRAM_BOT_TOKEN || "").trim() || chats.length === 0) {
       return await transact((d) => {
         const l = d.leads.find((x) => x.id === leadId)!;
         l.telegram = { ...l.telegram, status: "simulated", message: text, lastAttemptAt: new Date().toISOString() };
@@ -146,19 +158,28 @@ export async function notifyLead(leadId: string, opts: { force?: boolean } = {})
       });
     }
 
-    let error: string | undefined;
-    let ok = false;
+    // Send to every connected chat. The lead counts as delivered once at least one chat has it.
+    let delivered = 0;
+    const failures: string[] = [];
     let attempts = lead.telegram.attempts;
-    for (let i = 0; i < MAX_ATTEMPTS_PER_RUN && !ok; i++) {
-      attempts += 1;
-      const r = await sendOnce(text);
-      ok = r.ok;
-      error = r.error;
-      if (!ok) {
-        console.error(`[sales/telegram] lead ${leadId} attempt ${attempts} failed: ${error}`);
-        if (i < MAX_ATTEMPTS_PER_RUN - 1) await sleep(Math.min(r.retryAfterMs ?? 1_000 * (i + 1) ** 2, 10_000));
+    for (const chatId of chats) {
+      let ok = false;
+      let error: string | undefined;
+      for (let i = 0; i < MAX_ATTEMPTS_PER_RUN && !ok; i++) {
+        attempts += 1;
+        const r = await sendOnce(chatId, text);
+        ok = r.ok;
+        error = r.error;
+        if (!ok) {
+          console.error(`[sales/telegram] lead ${leadId} to chat ${chatId} attempt ${i + 1} failed: ${error}`);
+          if (i < MAX_ATTEMPTS_PER_RUN - 1) await sleep(Math.min(r.retryAfterMs ?? 1_000 * (i + 1) ** 2, 10_000));
+        }
       }
+      if (ok) delivered += 1;
+      else failures.push(`${chatId}: ${error}`);
     }
+    const ok = delivered > 0;
+    const error = failures.length ? failures.join("; ") : undefined;
 
     return await transact((d) => {
       const l = d.leads.find((x) => x.id === leadId)!;
@@ -169,7 +190,8 @@ export async function notifyLead(leadId: string, opts: { force?: boolean } = {})
         attempts,
         lastAttemptAt: now,
         sentAt: ok ? now : l.telegram.sentAt,
-        error: ok ? undefined : error,
+        // On success, keep any per-chat failures visible so a dead chat is noticed.
+        error,
         message: text,
       };
       if (ok && l.status === "New") l.status = "Notified";
@@ -183,8 +205,7 @@ export async function notifyLead(leadId: string, opts: { force?: boolean } = {})
 
 /** Retry alerts that previously failed. Safe to call often; it rate-limits itself. */
 export async function retryFailedAlerts(): Promise<void> {
-  if (!telegramConfigured()) return;
-  const { readOnly } = await import("./store");
+  if (!(await telegramConfigured())) return;
   const due = await readOnly((d) =>
     d.leads
       .filter(
@@ -199,22 +220,16 @@ export async function retryFailedAlerts(): Promise<void> {
 }
 
 /* ------------------------------------------------------------------ */
-/* Configuration check (no secrets in the result)                      */
+/* Bot API helper and configuration check (no secrets in results)      */
 /* ------------------------------------------------------------------ */
 
-export type TelegramCheck = {
-  configured: boolean;
-  bot?: string;
-  chat?: { id: string; type: string; title?: string };
-  sent?: boolean;
-  problem?: string;
-  hint?: string;
-};
-
-async function tg<T>(method: string, body?: Record<string, unknown>): Promise<{ ok: boolean; result?: T; description?: string; migrateTo?: number }> {
+export async function tg<T>(
+  method: string,
+  body?: Record<string, unknown>
+): Promise<{ ok: boolean; result?: T; description?: string; migrateTo?: number }> {
   const token = (process.env.TELEGRAM_BOT_TOKEN || "").trim();
   try {
-    const res = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
+    const res = await fetch(`${apiBase()}/bot${token}/${method}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body ?? {}),
@@ -227,51 +242,78 @@ async function tg<T>(method: string, body?: Record<string, unknown>): Promise<{ 
       description?: string;
       parameters?: { migrate_to_chat_id?: number };
     };
-    return { ok: Boolean(json.ok), result: json.result, description: scrub(json.description || `HTTP ${res.status}`), migrateTo: json.parameters?.migrate_to_chat_id };
+    return {
+      ok: Boolean(json.ok),
+      result: json.result,
+      description: scrub(json.description || `HTTP ${res.status}`),
+      migrateTo: json.parameters?.migrate_to_chat_id,
+    };
   } catch (err) {
     return { ok: false, description: scrub(err instanceof Error ? err.message : String(err)) };
   }
 }
 
+export type ChatCheck = { id: string; type?: string; title?: string; ok: boolean; error?: string; sent?: boolean };
+export type TelegramCheck = {
+  configured: boolean;
+  bot?: string;
+  chats?: ChatCheck[];
+  sent?: boolean;
+  problem?: string;
+  hint?: string;
+};
+
 /** Tell the owner exactly what is wrong with the Telegram setup, and optionally send a test message. */
 export async function checkTelegram(sendTest: boolean): Promise<TelegramCheck> {
   const token = (process.env.TELEGRAM_BOT_TOKEN || "").trim();
-  const chatId = (process.env.TELEGRAM_CHAT_ID || "").trim();
-  if (!token || !chatId) {
-    return {
-      configured: false,
-      problem: `${!token ? "TELEGRAM_BOT_TOKEN" : "TELEGRAM_CHAT_ID"} is not set on this server.`,
-      hint: "Set both variables in the host's environment and redeploy.",
-    };
+  if (!token) {
+    return { configured: false, problem: "TELEGRAM_BOT_TOKEN is not set on this server.", hint: "Set it in the host's environment and redeploy." };
   }
-
   const me = await tg<{ username?: string }>("getMe");
   if (!me.ok) {
     return { configured: true, problem: `Telegram rejected the bot token (${me.description}).`, hint: "Copy the token from @BotFather again. It looks like 123456789:AA…" };
   }
   const bot = me.result?.username ? `@${me.result.username}` : "bot";
 
-  const chat = await tg<{ id: number; type: string; title?: string; first_name?: string }>("getChat", { chat_id: chatId });
-  if (!chat.ok) {
-    const migrated = chat.migrateTo ? ` The group was upgraded to a supergroup. Use ${chat.migrateTo} instead.` : "";
-    const looksLikeGroupWithoutMinus = /^\d{7,}$/.test(chatId);
+  const ids = await destinations();
+  if (ids.length === 0) {
     return {
       configured: true,
       bot,
-      problem: `Telegram can't find chat ${chatId} for ${bot} (${chat.description}).${migrated}`,
-      hint:
-        `${bot} must be a member of the chat, and TELEGRAM_CHAT_ID must be that chat's ID, not the bot's. ` +
-        "For a group, add the bot, post a message in the group, then get the ID from @RawDataBot or @userinfobot. Group IDs start with - (supergroups with -100). " +
-        "For a private chat, open the bot and press Start first." +
-        (looksLikeGroupWithoutMinus ? " The ID you set has no minus sign, which usually means a person, not a group." : ""),
+      problem: "No chat is connected to receive alerts.",
+      hint: `Use "Connect a chat" below: add ${bot} to a group or start a private chat with it, using the link shown. Alerts then go there automatically.`,
     };
   }
-  const info = { id: String(chat.result?.id ?? chatId), type: chat.result?.type ?? "unknown", title: chat.result?.title || chat.result?.first_name };
 
-  if (!sendTest) return { configured: true, bot, chat: info };
+  const chats: ChatCheck[] = [];
+  for (const id of ids) {
+    const chat = await tg<{ id: number; type: string; title?: string; first_name?: string }>("getChat", { chat_id: id });
+    if (!chat.ok) {
+      const migrated = chat.migrateTo ? ` The group was upgraded to a supergroup; its new ID is ${chat.migrateTo}.` : "";
+      chats.push({ id, ok: false, error: `${chat.description}.${migrated}` });
+      continue;
+    }
+    const entry: ChatCheck = { id, ok: true, type: chat.result?.type, title: chat.result?.title || chat.result?.first_name };
+    if (sendTest) {
+      const sent = await tg("sendMessage", { chat_id: id, text: "✅ DO Supply Sales Agent: test alert. Telegram is connected." });
+      entry.sent = sent.ok;
+      if (!sent.ok) {
+        entry.ok = false;
+        entry.error = sent.description;
+      }
+    }
+    chats.push(entry);
+  }
 
-  const sent = await tg("sendMessage", { chat_id: chatId, text: "✅ DO Supply Sales Agent: test alert. Telegram is connected." });
-  return sent.ok
-    ? { configured: true, bot, chat: info, sent: true }
-    : { configured: true, bot, chat: info, sent: false, problem: `Sending failed (${sent.description}).`, hint: "If this says the bot was kicked or can't write, re-add it to the group and allow it to send messages." };
+  const good = chats.filter((c) => c.ok);
+  if (good.length === 0) {
+    return {
+      configured: true,
+      bot,
+      chats,
+      problem: "Telegram can't reach any connected chat.",
+      hint: `${bot} must be a member of the chat. Re-add it to the group (or press Start in the private chat) using the connect link, or remove the stale entry.`,
+    };
+  }
+  return { configured: true, bot, chats, sent: sendTest ? good.some((c) => c.sent) : undefined };
 }

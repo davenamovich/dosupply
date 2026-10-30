@@ -16,6 +16,6 @@ export async function GET(req: NextRequest) {
   const leads = await listLeads();
   return NextResponse.json({
     leads,
-    mode: { inventory: inventoryMode(), alerts: alertMode() },
+    mode: { inventory: inventoryMode(), alerts: await alertMode() },
   });
 }

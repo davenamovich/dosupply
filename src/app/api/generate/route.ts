@@ -4,6 +4,9 @@ import {
   JSON_ONLY_INSTRUCTION,
   chat,
   parseJsonLoose,
+  BUSY_RESPONSE,
+  clientIp,
+  globalLimit,
   rateLimit,
 } from "@/lib/ai";
 
@@ -83,12 +86,15 @@ Integrity rules:
 /* ------------------------------------------------------------------ */
 
 export async function POST(req: NextRequest) {
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0] || "local";
-  if (!rateLimit(ip, 40, 60_000)) {
+  const ip = clientIp(req);
+  if (!rateLimit(`generate:${ip}`, 40, 60_000)) {
     return NextResponse.json(
       { error: "Rate limit reached. Give the engine a breath and try again." },
       { status: 429 }
     );
+  }
+  if (!globalLimit("generate", 300)) {
+    return NextResponse.json(BUSY_RESPONSE, { status: 429 });
   }
 
   let body: Record<string, unknown>;

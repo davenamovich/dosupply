@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { callMcpTool } from "@/lib/mcp/client";
 import { engineBrand } from "@/lib/mcp/brand";
-import { rateLimit } from "@/lib/ai";
+import { BUSY_RESPONSE, clientIp, globalLimit, rateLimit } from "@/lib/ai";
 import { bumpStat } from "@/lib/session-stats";
 import { pickVerticalCreative } from "@/lib/vertical-creative";
 
@@ -33,12 +33,15 @@ type MultilangPayload = {
 };
 
 export async function POST(req: NextRequest) {
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0] || "local";
-  if (!rateLimit(ip, 6, 60_000)) {
+  const ip = clientIp(req);
+  if (!rateLimit(`multilang:${ip}`, 6, 60_000)) {
     return NextResponse.json(
       { error: "Multilanguage rate limit reached — max 6 calls/min.", code: "rate" },
       { status: 429 }
     );
+  }
+  if (!globalLimit("multilang", 30)) {
+    return NextResponse.json(BUSY_RESPONSE, { status: 429 });
   }
 
   let body: { input?: string; languages?: string[]; format?: string };

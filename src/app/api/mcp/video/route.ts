@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { callMcpTool, mcpKeyConfigured } from "@/lib/mcp/client";
 import { videoLook } from "@/lib/mcp/brand";
-import { rateLimit } from "@/lib/ai";
+import { BUSY_RESPONSE, clientIp, globalLimit, rateLimit } from "@/lib/ai";
 import { bumpStat } from "@/lib/session-stats";
 
 export const dynamic = "force-dynamic";
@@ -20,17 +20,19 @@ type PhoneDemoStart = {
  * Calls P&R MCP create_phone_demo — a ~60s sit-down video where the
  * generated posts land on the host's phone. Returns a jobId for polling
  * via /api/mcp/job (kind "sitdown"), usually 1–2 min.
- * Per the tool schema: done carries pageUrl (a preview, no MP4). MP4
- * rendering is a separate human-approved step (request_mp4) that is
- * triggered by the user clicking the render button — never auto-fired.
+ * Per the tool schema: done carries pageUrl (a preview, no MP4). This app
+ * does not render MP4s.
  */
 export async function POST(req: NextRequest) {
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0] || "local";
-  if (!rateLimit(ip, 8, 60_000)) {
+  const ip = clientIp(req);
+  if (!rateLimit(`video:${ip}`, 8, 60_000)) {
     return NextResponse.json(
       { error: "Video generation rate limit reached.", code: "rate" },
       { status: 429 }
     );
+  }
+  if (!globalLimit("video", 20)) {
+    return NextResponse.json(BUSY_RESPONSE, { status: 429 });
   }
 
   let body: { topic?: string; shape?: string; title?: string };

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolveKey, keyStatus } from "@/lib/runtime-keys";
-import { rateLimit } from "@/lib/ai";
+import { BUSY_RESPONSE, clientIp, globalLimit, rateLimit } from "@/lib/ai";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -47,12 +47,15 @@ function tinyfishConfig(): { endpoint: string; apiKey: string } | null {
  * provenance honestly.
  */
 export async function POST(req: NextRequest) {
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0] || "local";
-  if (!rateLimit(ip, 20, 60_000)) {
+  const ip = clientIp(req);
+  if (!rateLimit(`research:${ip}`, 20, 60_000)) {
     return NextResponse.json(
       { error: "Research rate limit reached." },
       { status: 429 }
     );
+  }
+  if (!globalLimit("research", 200)) {
+    return NextResponse.json(BUSY_RESPONSE, { status: 429 });
   }
 
   let body: { query?: string; num?: number };
