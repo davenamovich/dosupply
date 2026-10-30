@@ -9,19 +9,19 @@ type Mode = { inventory: string; alerts: string };
 const PASS_KEY = "dosupply-dashboard-passcode";
 
 const STATUS_STYLE: Record<LeadStatus, string> = {
-  New: "bg-blue-50 text-blue-700 border-blue-200",
-  Notified: "bg-indigo-50 text-indigo-700 border-indigo-200",
-  Contacted: "bg-sky-50 text-sky-700 border-sky-200",
-  Quoted: "bg-amber-50 text-amber-800 border-amber-200",
-  Won: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  Lost: "bg-slate-100 text-slate-600 border-slate-200",
+  New: "bg-blue-400/10 text-blue-300 border-blue-400/30",
+  Notified: "bg-indigo-400/10 text-indigo-300 border-indigo-400/30",
+  Contacted: "bg-sky-400/10 text-sky-300 border-sky-400/30",
+  Quoted: "bg-amber-400/10 text-amber-300 border-amber-400/30",
+  Won: "bg-emerald-400/10 text-emerald-300 border-emerald-400/30",
+  Lost: "bg-white/5 text-zinc-300 border-white/10",
 };
 
 const ALERT_STYLE: Record<Lead["telegram"]["status"], { label: string; cls: string }> = {
-  sent: { label: "Telegram delivered", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-  simulated: { label: "Telegram simulated", cls: "bg-amber-50 text-amber-800 border-amber-200" },
-  failed: { label: "Telegram failed", cls: "bg-rose-50 text-rose-700 border-rose-200" },
-  pending: { label: "Alert pending", cls: "bg-slate-100 text-slate-600 border-slate-200" },
+  sent: { label: "Telegram delivered", cls: "bg-emerald-400/10 text-emerald-300 border-emerald-400/30" },
+  simulated: { label: "Telegram simulated", cls: "bg-amber-400/10 text-amber-300 border-amber-400/30" },
+  failed: { label: "Telegram failed", cls: "bg-rose-400/10 text-rose-300 border-rose-400/30" },
+  pending: { label: "Alert pending", cls: "bg-white/5 text-zinc-300 border-white/10" },
 };
 
 function itemName(i: Lead["items"][number]) {
@@ -96,7 +96,7 @@ export default function Dashboard() {
       <div className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-4 px-4">
         <Brand />
         <h1 className="text-lg font-semibold">Sales dashboard</h1>
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-zinc-300">
           {locked === "wrong" ? "That passcode didn't work." : "Enter the dashboard passcode to view leads."}
         </p>
         <form
@@ -111,10 +111,10 @@ export default function Dashboard() {
             type="password"
             value={passcode}
             onChange={(e) => setPasscode(e.target.value)}
-            className="min-w-0 flex-1 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm outline-none focus:border-[#2563EB]"
+            className="min-w-0 flex-1 rounded-full border border-white/10 bg-[#12151b] px-4 py-2 text-sm outline-none focus:border-amber-400/60"
             placeholder="Passcode"
           />
-          <button className="rounded-full bg-[#0B1F3A] px-4 py-2 text-sm font-semibold text-white">Unlock</button>
+          <button className="rounded-full bg-teal-400 px-4 py-2 text-sm font-bold text-black">Unlock</button>
         </form>
       </div>
     );
@@ -125,44 +125,44 @@ export default function Dashboard() {
       <header className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-4">
           <Brand />
-          <span className="hidden h-6 w-px bg-slate-200 sm:block" />
+          <span className="hidden h-6 w-px bg-white/10 sm:block" />
           <h1 className="text-base font-semibold">Sales leads</h1>
         </div>
         <div className="flex items-center gap-3 text-xs">
-          <span className="rounded-full border border-slate-200 bg-white px-3 py-1 font-medium">
+          <span className="rounded-full border border-white/10 bg-[#12151b] px-3 py-1 font-medium">
             Alerts: {mode?.alerts === "telegram" ? "Telegram (live)" : "Telegram (simulated)"}
           </span>
-          <span className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1 font-medium">
+          <span className="flex items-center gap-1.5 rounded-full border border-white/10 bg-[#12151b] px-3 py-1 font-medium">
             Inventory: {mode?.inventory === "demo" ? "Simulated" : mode?.inventory} {mode?.inventory === "demo" && <DemoBadge />}
           </span>
-          <a href="/sales-agent" className="font-semibold text-[#2563EB] hover:underline">
+          <a href="/sales-agent" className="font-semibold text-amber-300 hover:underline">
             ← Back to chat
           </a>
         </div>
       </header>
 
       {!loaded ? (
-        <p className="text-sm text-slate-500">Loading…</p>
+        <p className="text-sm text-zinc-400">Loading…</p>
       ) : leads.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center">
+        <div className="rounded-2xl border border-dashed border-white/15 bg-[#12151b] p-10 text-center">
           <p className="text-sm font-semibold">No leads yet</p>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-zinc-400">
             Finish a conversation in the chat and the lead will appear here within a few seconds.
           </p>
         </div>
       ) : (
         <div className="grid gap-5 lg:grid-cols-[360px_minmax(0,1fr)]">
-          <ul className="space-y-2 lg:max-h-[calc(100vh-9rem)] lg:overflow-y-auto">
+          <ul className="space-y-2 scroll-slim lg:max-h-[calc(100vh-9rem)] lg:overflow-y-auto">
             {leads.map((l) => (
               <li key={l.id}>
                 <button
                   onClick={() => setSelectedId(l.id)}
-                  className={`w-full rounded-2xl border bg-white p-3.5 text-left transition hover:border-[#2563EB] ${
-                    l.id === selectedId ? "border-[#2563EB] ring-2 ring-[#2563EB]/15" : "border-slate-200"
+                  className={`w-full rounded-2xl border bg-[#12151b] p-3.5 text-left transition hover:border-amber-400/50 ${
+                    l.id === selectedId ? "border-amber-400/60 ring-2 ring-amber-400/15" : "border-white/10"
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="font-mono text-xs font-semibold text-slate-500">{l.id}</span>
+                    <span className="font-mono text-xs font-semibold text-zinc-400">{l.id}</span>
                     <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${STATUS_STYLE[l.status]}`}>
                       {l.status}
                     </span>
@@ -171,12 +171,12 @@ export default function Dashboard() {
                     {l.customer.name || l.customer.email || "Unknown"}
                     {l.customer.company ? ` · ${l.customer.company}` : ""}
                   </p>
-                  <p className="truncate text-xs text-slate-600">
+                  <p className="truncate text-xs text-zinc-300">
                     {l.items.length
                       ? l.items.map((i) => `${i.quantity ?? "?"}× ${i.partNumber || i.description || "part"}`).join(", ")
                       : l.kind}
                   </p>
-                  <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500">
+                  <div className="mt-2 flex items-center justify-between text-[11px] text-zinc-400">
                     <span>{l.kind}</span>
                     <span>{when(l.createdAt)}</span>
                   </div>
@@ -204,15 +204,15 @@ function Detail({
   const alert = ALERT_STYLE[lead.telegram.status];
   return (
     <div className="space-y-5">
-      <section className="rounded-2xl border border-slate-200 bg-white p-5">
+      <section className="rounded-2xl border border-white/10 bg-[#12151b] p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="font-mono text-xs text-slate-500">{lead.id}</p>
+            <p className="font-mono text-xs text-zinc-400">{lead.id}</p>
             <h2 className="text-lg font-semibold">{lead.kind}</h2>
-            <p className="text-xs text-slate-500">Created {when(lead.createdAt)}</p>
+            <p className="text-xs text-zinc-400">Created {when(lead.createdAt)}</p>
           </div>
           <div className="flex items-center gap-2">
-            <label className="text-xs font-medium text-slate-500" htmlFor="status">
+            <label className="text-xs font-medium text-zinc-400" htmlFor="status">
               Follow-up
             </label>
             <select
@@ -220,7 +220,7 @@ function Detail({
               value={lead.status}
               disabled={busy}
               onChange={(e) => onPatch({ status: e.target.value as LeadStatus })}
-              className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium outline-none focus:border-[#2563EB]"
+              className="rounded-full border border-white/10 bg-[#12151b] px-3 py-1.5 text-sm font-medium outline-none focus:border-amber-400/60"
             >
               {LEAD_STATUSES.map((s) => (
                 <option key={s}>{s}</option>
@@ -230,7 +230,7 @@ function Detail({
         </div>
 
         {lead.updatedAfterAlert && (
-          <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
+          <p className="mt-3 rounded-lg bg-amber-400/10 px-3 py-2 text-xs font-medium text-amber-300">
             The customer added details after the alert went out. The fields and transcript below are current.
           </p>
         )}
@@ -244,26 +244,26 @@ function Detail({
             ["Ship to", lead.customer.shipping],
           ].map(([k, v]) => (
             <div key={k} className="flex gap-2">
-              <dt className="w-16 shrink-0 text-slate-500">{k}</dt>
-              <dd className="font-medium">{v || <span className="font-normal text-slate-400">Not provided</span>}</dd>
+              <dt className="w-16 shrink-0 text-zinc-400">{k}</dt>
+              <dd className="font-medium">{v || <span className="font-normal text-zinc-500">Not provided</span>}</dd>
             </div>
           ))}
         </dl>
       </section>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-5">
+      <section className="rounded-2xl border border-white/10 bg-[#12151b] p-5">
         <h3 className="text-sm font-semibold">Products requested</h3>
         <div className="mt-3 space-y-4">
-          {lead.items.length === 0 && <p className="text-sm text-slate-500">No specific part. Customer asked for a rep.</p>}
+          {lead.items.length === 0 && <p className="text-sm text-zinc-400">No specific part. Customer asked for a rep.</p>}
           {lead.items.map((i) => (
-            <div key={i.id} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+            <div key={i.id} className="rounded-xl border border-white/5 bg-white/5 p-3">
               <p className="text-sm font-semibold">
                 {i.quantity ?? "Qty TBD"} × {itemName(i)}
-                {i.condition && <span className="ml-2 text-xs font-medium text-slate-500">{i.condition}</span>}
+                {i.condition && <span className="ml-2 text-xs font-medium text-zinc-400">{i.condition}</span>}
               </p>
-              <p className="mt-0.5 text-xs text-slate-500">
+              <p className="mt-0.5 text-xs text-zinc-400">
                 Inventory result:{" "}
-                <strong className="text-[#0B1F3A]">
+                <strong className="text-zinc-100">
                   {i.lookup ? (i.lookup.matchType === "none" ? "Not found" : i.lookup.matchType === "exact" ? "Exact match" : "Possible match") : "Not searched"}
                 </strong>
                 {i.lookup && !i.lookup.verified && " · not verified against live inventory"}
@@ -280,7 +280,7 @@ function Detail({
         </div>
       </section>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-5">
+      <section className="rounded-2xl border border-white/10 bg-[#12151b] p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-sm font-semibold">Telegram alert</h3>
           <div className="flex items-center gap-2">
@@ -289,32 +289,32 @@ function Detail({
               <button
                 disabled={busy}
                 onClick={() => onPatch({ retryAlert: true })}
-                className="rounded-full bg-[#0B1F3A] px-3 py-1 text-xs font-semibold text-white hover:bg-[#2563EB] disabled:opacity-50"
+                className="rounded-full bg-teal-400 px-3 py-1 text-xs font-bold text-black hover:bg-teal-300 disabled:opacity-50"
               >
                 Retry now
               </button>
             )}
           </div>
         </div>
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-xs text-zinc-400">
           Attempts: {lead.telegram.attempts}
           {lead.telegram.sentAt && ` · delivered ${when(lead.telegram.sentAt)}`}
           {lead.telegram.status === "simulated" && " · no Telegram credentials configured, so this is the message that would be sent"}
           {lead.telegram.error && ` · last error: ${lead.telegram.error}`}
         </p>
-        <pre className="mt-3 max-h-80 overflow-auto whitespace-pre-wrap rounded-xl bg-[#0B1F3A] p-4 font-mono text-xs leading-relaxed text-slate-100">
+        <pre className="mt-3 scroll-slim max-h-80 overflow-auto whitespace-pre-wrap rounded-xl bg-black/60 border border-white/10 p-4 font-mono text-teal-100 text-xs leading-relaxed text-zinc-100">
           {lead.telegram.message}
         </pre>
       </section>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-5">
+      <section className="rounded-2xl border border-white/10 bg-[#12151b] p-5">
         <h3 className="text-sm font-semibold">Conversation transcript</h3>
         <div className="mt-3 space-y-2.5">
           {lead.transcript.map((m) => (
             <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
               <div
                 className={`max-w-[85%] whitespace-pre-line rounded-2xl px-3.5 py-2 text-sm ${
-                  m.role === "user" ? "bg-[#0B1F3A] text-white" : "border border-slate-200 bg-slate-50"
+                  m.role === "user" ? "bg-amber-400 font-medium text-black" : "border border-white/10 bg-white/5"
                 }`}
               >
                 {m.text}

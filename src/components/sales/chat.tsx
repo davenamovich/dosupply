@@ -122,38 +122,38 @@ export default function SalesChat() {
   return (
     <div className="mx-auto grid w-full max-w-6xl gap-6 px-4 py-6 lg:grid-cols-[minmax(0,1fr)_340px]">
       {/* Chat */}
-      <section className="flex h-[calc(100dvh-3rem)] min-h-[560px] flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_8px_40px_-12px_rgba(11,31,58,0.18)] lg:h-[min(760px,calc(100dvh-3rem))]">
-        <header className="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-3.5">
+      <section className="flex h-[calc(100dvh-3rem)] min-h-[560px] flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#12151b] shadow-[0_8px_40px_-12px_rgba(0,0,0,0.8)] lg:h-[min(760px,calc(100dvh-3rem))]">
+        <header className="flex items-center justify-between gap-3 border-b border-white/5 px-5 py-3.5">
           <Brand />
           <div className="flex items-center gap-3">
-            <span className="hidden items-center gap-1.5 text-xs font-medium text-slate-600 sm:flex">
+            <span className="hidden items-center gap-1.5 text-xs font-medium text-zinc-300 sm:flex">
               <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-teal-400 opacity-60" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-teal-400" />
               </span>
               DO Supply Sales Assistant | Online
             </span>
             <button
               onClick={() => send("Talk to sales")}
               disabled={typing}
-              className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-[#0B1F3A] transition hover:border-[#2563EB] hover:text-[#2563EB] disabled:opacity-50"
+              className="rounded-full border border-white/10 px-3 py-1.5 text-xs font-semibold text-zinc-100 transition hover:border-amber-400/50 hover:text-amber-300 disabled:opacity-50"
             >
               Talk to a person
             </button>
           </div>
         </header>
 
-        <div className="flex-1 space-y-4 overflow-y-auto bg-[#F8FAFD] px-4 py-5 sm:px-6" aria-live="polite">
+        <div className="scroll-slim flex-1 space-y-4 overflow-y-auto bg-black/30 px-4 py-5 sm:px-6" aria-live="polite">
           {messages.map((m) => (
             <Bubble key={m.id} m={m} />
           ))}
           {typing && (
             <div className="flex animate-in fade-in items-center gap-1 pl-1" aria-label="Assistant is typing">
-              <span className="flex gap-1 rounded-2xl rounded-bl-md border border-slate-200 bg-white px-4 py-3">
+              <span className="flex gap-1 rounded-2xl rounded-bl-md border border-white/10 bg-[#12151b] px-4 py-3">
                 {[0, 150, 300].map((d) => (
                   <span
                     key={d}
-                    className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400"
+                    className="h-1.5 w-1.5 animate-bounce rounded-full bg-zinc-500"
                     style={{ animationDelay: `${d}ms` }}
                   />
                 ))}
@@ -161,9 +161,9 @@ export default function SalesChat() {
             </div>
           )}
           {leadId && (
-            <p className="text-center text-[11px] font-medium text-slate-500">
+            <p className="text-center text-[11px] font-medium text-zinc-400">
               Request saved as <span className="font-mono">{leadId}</span> ·{" "}
-              <a className="text-[#2563EB] hover:underline" href="/sales-agent/dashboard" target="_blank" rel="noreferrer">
+              <a className="text-amber-300 hover:underline" href="/sales-agent/dashboard" target="_blank" rel="noreferrer">
                 view on dashboard
               </a>
             </p>
@@ -171,7 +171,7 @@ export default function SalesChat() {
           <div ref={endRef} />
         </div>
 
-        <footer className="border-t border-slate-100 bg-white px-4 py-3 sm:px-5">
+        <footer className="border-t border-white/5 bg-[#12151b] px-4 py-3 sm:px-5">
           {error && <p className="mb-2 text-xs font-medium text-rose-600">{error}</p>}
           {chips.length > 0 && !typing && (
             <div className="mb-3 flex flex-wrap gap-2">
@@ -179,7 +179,7 @@ export default function SalesChat() {
                 <button
                   key={c}
                   onClick={() => send(c)}
-                  className="rounded-full border border-[#2563EB]/30 bg-[#2563EB]/5 px-3.5 py-1.5 text-xs font-semibold text-[#1D4ED8] transition hover:bg-[#2563EB] hover:text-white"
+                  className="rounded-full border border-amber-400/30 bg-amber-400/10 px-3.5 py-1.5 text-xs font-semibold text-amber-200 transition hover:bg-amber-400 hover:text-black"
                 >
                   {c}
                 </button>
@@ -199,12 +199,12 @@ export default function SalesChat() {
               placeholder="Part number, manufacturer, or what you need…"
               maxLength={1500}
               disabled={!sessionId}
-              className="min-w-0 flex-1 rounded-full border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-[#0B1F3A] outline-none transition placeholder:text-slate-400 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20"
+              className="min-w-0 flex-1 rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-500 focus:border-amber-400/60 focus:bg-[#12151b] focus:ring-2 focus:ring-amber-400/20"
             />
             <button
               type="submit"
               disabled={!input.trim() || typing || !sessionId}
-              className="rounded-full bg-[#0B1F3A] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#2563EB] disabled:cursor-not-allowed disabled:opacity-40"
+              className="rounded-full bg-teal-400 px-5 py-2.5 text-sm font-bold text-black transition hover:bg-teal-300 disabled:cursor-not-allowed disabled:opacity-40"
             >
               Send
             </button>
@@ -214,34 +214,34 @@ export default function SalesChat() {
 
       {/* Side panel */}
       <aside className="space-y-4 lg:pt-1">
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <h2 className="text-sm font-semibold text-[#0B1F3A]">Demo status</h2>
+        <div className="rounded-2xl border border-white/10 bg-[#12151b] p-4">
+          <h2 className="text-sm font-semibold text-zinc-100">Demo status</h2>
           <dl className="mt-3 space-y-2 text-xs">
             <div className="flex items-center justify-between gap-2">
-              <dt className="text-slate-500">Inventory</dt>
-              <dd className="flex items-center gap-1.5 font-medium text-[#0B1F3A]">
+              <dt className="text-zinc-400">Inventory</dt>
+              <dd className="flex items-center gap-1.5 font-medium text-zinc-100">
                 {mode?.inventory === "live" ? "Live catalog" : mode?.inventory === "csv" ? "Imported CSV" : "Simulated"}
                 {mode?.inventory === "demo" && <DemoBadge />}
               </dd>
             </div>
             <div className="flex items-center justify-between gap-2">
-              <dt className="text-slate-500">Sales alerts</dt>
-              <dd className="font-medium text-[#0B1F3A]">
+              <dt className="text-zinc-400">Sales alerts</dt>
+              <dd className="font-medium text-zinc-100">
                 {mode?.alerts === "telegram" ? "Telegram (live)" : "Telegram (simulated)"}
               </dd>
             </div>
           </dl>
           <a
             href="/sales-agent/dashboard"
-            className="mt-4 block rounded-full bg-[#0B1F3A] px-4 py-2 text-center text-xs font-semibold text-white transition hover:bg-[#2563EB]"
+            className="mt-4 block rounded-full bg-teal-400 px-4 py-2 text-center text-xs font-bold text-black transition hover:bg-teal-300"
           >
             Open sales dashboard
           </a>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <h2 className="text-sm font-semibold text-[#0B1F3A]">Run a sample conversation</h2>
-          <p className="mt-1 text-xs text-slate-500">
+        <div className="rounded-2xl border border-white/10 bg-[#12151b] p-4">
+          <h2 className="text-sm font-semibold text-zinc-100">Run a sample conversation</h2>
+          <p className="mt-1 text-xs text-zinc-400">
             Plays a scripted customer through the real agent, so each one creates a real lead.
           </p>
           <ul className="mt-3 space-y-2">
@@ -250,18 +250,18 @@ export default function SalesChat() {
                 <button
                   onClick={() => runScenario(s)}
                   disabled={Boolean(running)}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-left transition hover:border-[#2563EB] disabled:opacity-50"
+                  className="w-full rounded-xl border border-white/10 px-3 py-2 text-left transition hover:border-amber-400/50 disabled:opacity-50"
                 >
-                  <span className="flex items-center justify-between text-sm font-semibold text-[#0B1F3A]">
+                  <span className="flex items-center justify-between text-sm font-semibold text-zinc-100">
                     {s.title}
-                    <span className="text-xs font-medium text-[#2563EB]">{running === s.id ? "Running…" : "Run"}</span>
+                    <span className="text-xs font-medium text-amber-300">{running === s.id ? "Running…" : "Run"}</span>
                   </span>
-                  <span className="block text-xs text-slate-500">{s.blurb}</span>
+                  <span className="block text-xs text-zinc-400">{s.blurb}</span>
                 </button>
               </li>
             ))}
           </ul>
-          <button onClick={reset} disabled={Boolean(running)} className="mt-3 text-xs font-medium text-slate-500 hover:text-[#2563EB] disabled:opacity-50">
+          <button onClick={reset} disabled={Boolean(running)} className="mt-3 text-xs font-medium text-zinc-400 hover:text-amber-300 disabled:opacity-50">
             Start a new conversation
           </button>
         </div>
@@ -278,8 +278,8 @@ function Bubble({ m }: { m: ChatMessage }) {
         <div
           className={`whitespace-pre-line rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
             mine
-              ? "rounded-br-md bg-[#0B1F3A] text-white"
-              : "rounded-bl-md border border-slate-200 bg-white text-[#0B1F3A]"
+              ? "rounded-br-md bg-amber-400 font-medium text-black"
+              : "rounded-bl-md border border-white/10 bg-[#12151b] text-zinc-100"
           }`}
         >
           {m.text}
@@ -291,7 +291,7 @@ function Bubble({ m }: { m: ChatMessage }) {
             ))}
           </div>
         )}
-        <p className={`px-1 text-[10px] text-slate-400 ${mine ? "text-right" : ""}`}>{timeLabel(m.ts)}</p>
+        <p className={`px-1 text-[10px] text-zinc-500 ${mine ? "text-right" : ""}`}>{timeLabel(m.ts)}</p>
       </div>
     </div>
   );

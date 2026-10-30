@@ -8,6 +8,7 @@ const LINKS = [
   { href: "#command-center", label: "Command Center" },
   { href: "#live-demo", label: "Live Demo" },
   { href: "#pr-studio", label: "P&R Studio" },
+  { href: "/sales-agent", label: "Sales Agent" },
   { href: "#roadmap", label: "30-Day Plan" },
   { href: "#final", label: "Contact" },
 ];

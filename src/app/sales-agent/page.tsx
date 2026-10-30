@@ -9,9 +9,9 @@ export const metadata: Metadata = {
 
 export default function SalesAgentPage() {
   return (
-    <div className="min-h-screen bg-white text-[#0B1F3A]">
+    <div className="industrial min-h-screen">
       <SalesChat />
-      <p className="pb-6 text-center text-[11px] text-slate-400">
+      <p className="pb-6 text-center text-[11px] text-zinc-500">
         Standalone demo. Not connected to the DO Supply website, quote form or production inventory.
       </p>
     </div>
