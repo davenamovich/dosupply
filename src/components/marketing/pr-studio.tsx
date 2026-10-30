@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { postJson, McpStatusPill } from "./shared";
+import PhonePlayer, { loadStudioPhone, type PhoneContent } from "./phone-player";
 import { cn } from "@/lib/utils";
 import {
   Image as ImageIcon,
@@ -177,6 +178,12 @@ export default function PrStudio() {
   const [tab, setTab] = useState<string>("creative");
   const { keys, refresh: refreshKeys } = useKeys();
 
+  /* The studio phone — the in-page delivery surface for engine assets. */
+  const [phone, setPhone] = useState<PhoneContent | null>(null);
+  const phoneRailRef = useRef<HTMLDivElement>(null);
+  const [videoRequest, setVideoRequest] = useState<{ topic: string; nonce: number } | null>(null);
+  const [creativeRequest, setCreativeRequest] = useState<{ input: string; nonce: number } | null>(null);
+
   useEffect(() => {
     fetch("/api/status")
       .then((r) => r.json())
@@ -194,6 +201,44 @@ export default function PrStudio() {
     }
     window.addEventListener("pr-studio:tab", onTabRequest);
     return () => window.removeEventListener("pr-studio:tab", onTabRequest);
+  }, []);
+
+  /* Studio phone channel — any tab (or the engine console) can push an asset. */
+  useEffect(() => {
+    function onPhoneLoad(e: Event) {
+      const detail = (e as CustomEvent<PhoneContent>).detail;
+      if (!detail || typeof detail !== "object") return;
+      setPhone(detail);
+      // On narrow screens the phone lives below the tabs — bring it into view.
+      if (window.innerWidth < 1280) {
+        window.setTimeout(
+          () => phoneRailRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }),
+          150
+        );
+      }
+    }
+    window.addEventListener("studio-phone:load", onPhoneLoad);
+    return () => window.removeEventListener("studio-phone:load", onPhoneLoad);
+  }, []);
+
+  /* Quick-create commands from the Live Demo engine console. */
+  useEffect(() => {
+    function onQuickVideo(e: Event) {
+      const detail = (e as CustomEvent<{ topic?: string }>).detail;
+      setTab("video");
+      if (detail?.topic) setVideoRequest({ topic: detail.topic, nonce: Date.now() });
+    }
+    function onQuickCreative(e: Event) {
+      const detail = (e as CustomEvent<{ input?: string }>).detail;
+      setTab("creative");
+      if (detail?.input) setCreativeRequest({ input: detail.input, nonce: Date.now() });
+    }
+    window.addEventListener("pr-studio:quick-video", onQuickVideo);
+    window.addEventListener("pr-studio:quick-creative", onQuickCreative);
+    return () => {
+      window.removeEventListener("pr-studio:quick-video", onQuickVideo);
+      window.removeEventListener("pr-studio:quick-creative", onQuickCreative);
+    };
   }, []);
 
   const mcpLive = status?.mcp.connected ?? false;
@@ -230,8 +275,9 @@ export default function PrStudio() {
           </p>
         </div>
 
-        <div className="mx-auto mt-10 max-w-5xl">
-          <Tabs value={tab} onValueChange={setTab} className="w-full">
+        {/* Studio: tabs + results on the left, the beveled delivery phone on the right */}
+        <div className="mx-auto mt-10 grid max-w-6xl gap-10 xl:grid-cols-[minmax(0,1fr)_340px] xl:items-start">
+          <Tabs value={tab} onValueChange={setTab} className="w-full min-w-0">
             <TabsList className="mx-auto grid w-full max-w-3xl grid-cols-2 gap-1 rounded-xl border border-white/10 bg-black/50 p-1 sm:grid-cols-3 lg:grid-cols-5">
               {[
                 { id: "creative", label: "Ad Creative", icon: ImageIcon },
@@ -252,13 +298,13 @@ export default function PrStudio() {
             </TabsList>
 
             <TabsContent value="creative" className="mt-6">
-              <CreativeTab mcpLive={mcpLive} />
+              <CreativeTab mcpLive={mcpLive} request={creativeRequest} />
             </TabsContent>
             <TabsContent value="multilang" className="mt-6">
               <MultilangTab mcpLive={mcpLive} />
             </TabsContent>
             <TabsContent value="video" className="mt-6">
-              <VideoTab mcpLive={mcpLive} />
+              <VideoTab mcpLive={mcpLive} request={videoRequest} />
             </TabsContent>
             <TabsContent value="audio" className="mt-6">
               <AudioTab mcpLive={mcpLive} />
@@ -278,7 +324,7 @@ export default function PrStudio() {
 /* ================================================================== */
 
 function CreativeTab({ mcpLive }: { mcpLive: boolean }) {
-  const [input, setInput] = useState("Allen-Bradley PowerFlex 525 drives, need-it-now");
+  const [input, setInput] = useState("PanelView Plus 1000 HMI terminals just restocked");
   const [format, setFormat] = useState("carousel");
   const [kind, setKind] = useState<"creative" | "shop">("creative");
   const [loading, setLoading] = useState(false);

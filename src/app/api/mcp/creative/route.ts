@@ -71,28 +71,69 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const brief = `DO Supply industrial marketing. Product/topic: ${input}. Audience: plant managers, maintenance engineers, controls engineers. Voice: expert, fast, plain-spoken ("need-it-now" industrial automation parts supplier). No invented specs or availability claims.`;
+  // Keep `brief` a pure, punchy product statement — the meme writer takes
+  // passes on meta-instruction-heavy briefs. Voice/audience guidance goes in
+  // the dedicated `audience` param instead.
   const offer = "Explore tested industrial automation parts at dosupply.com";
 
-  const result =
-    kind === "shop"
-      ? await callMcpTool<CreativeResult>("shop", {
-          input,
-          direction:
-            body.direction ||
-            "for maintenance teams and plant managers who need parts NOW",
-          creatives: [format],
-          includeAssets: true,
-        })
-      : await callMcpTool<CreativeResult>("generate_ad_creative", {
-          brief,
-          offer,
-          format,
-          includeAssets: true,
-        });
+  const ENGINE_PASS = /couldn't write a good one|no credit used|tap try again/i;
+
+  /**
+   * The engine sometimes takes a creative pass and replies in plain text
+   * ("the AI couldn't write a good one this time (no credit used)…").
+   * It charges nothing for a pass, so one automatic retry is free — try
+   * twice before surfacing the honest retry message to the user.
+   */
+  let result = kind === "shop"
+    ? await callMcpTool<CreativeResult>("shop", {
+        input,
+        direction:
+          body.direction ||
+          "for maintenance teams and plant managers who need parts NOW",
+        creatives: [format],
+        includeAssets: true,
+      })
+    : await callMcpTool<CreativeResult>("generate_ad_creative", {
+        brief: input,
+        audience: "plant managers and maintenance engineers — expert, plain-spoken, need-it-now energy",
+        offer,
+        format,
+        includeAssets: true,
+      });
+
+  if (
+    !result.ok &&
+    kind === "creative" &&
+    result.code === "tool_error" &&
+    ENGINE_PASS.test(result.error)
+  ) {
+    console.log("[mcp/creative] engine passed on attempt 1 (no credit used) — retrying once");
+    result = await callMcpTool<CreativeResult>("generate_ad_creative", {
+      brief: input,
+      audience: "plant managers and maintenance engineers — expert, plain-spoken, need-it-now energy",
+      offer,
+      format,
+      includeAssets: true,
+    });
+  }
 
   if (!result.ok) {
     console.error("[mcp/creative] failed:", result.code, result.error);
+    // The engine sometimes takes a creative pass and replies in plain text
+    // ("the AI couldn't write a good one this time (no credit used)…").
+    // Map that known soft-failure to a friendly retry message — no credit
+    // was used, so a retry is free.
+    if (/couldn't write a good one|no credit used|tap try again/i.test(result.error)) {
+      return NextResponse.json(
+        {
+          mode: "error",
+          code: "engine_retry",
+          error:
+            "The P&R engine couldn't write a good one this time (no credit used) — tap Generate to try again.",
+        },
+        { status: 502 }
+      );
+    }
     return NextResponse.json(
       { mode: "error", code: result.code, error: result.error },
       { status: 502 }
@@ -120,7 +161,7 @@ export async function POST(req: NextRequest) {
 export async function GET() {
   return NextResponse.json({
     endpoint: mcpUrl(),
-    keyConfigured: mcpKeyConfigured(),
+    keyConfigured: await mcpKeyConfigured(),
     tools: ["generate_ad_creative", "shop", "create_one_minute", "get_job_status"],
   });
 }

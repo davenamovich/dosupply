@@ -114,6 +114,8 @@ export async function callMcpTool<T = unknown>(
     }
 
     if (!res.ok) {
+      // Read the body even on failure so proxies' HTML error pages don't
+      // matter — we report the status code cleanly.
       return {
         ok: false,
         code: "network",
@@ -121,12 +123,30 @@ export async function callMcpTool<T = unknown>(
       };
     }
 
-    const payload = (await res.json()) as {
+    const rawBody = await res.text();
+    let payload: {
       jsonrpc?: string;
       id?: number | null;
       result?: unknown;
       error?: { code?: number; message?: string };
-    };
+    } | null = null;
+    try {
+      payload = JSON.parse(rawBody) as typeof payload;
+    } catch {
+      payload = null;
+    }
+    if (!payload) {
+      // 2xx but the body isn't JSON-RPC — e.g. an HTML page slipped through a
+      // proxy. Report it honestly instead of leaking a JSON parse error.
+      const looksHtml = /^\s*<(?:!doctype|html)/i.test(rawBody);
+      return {
+        ok: false,
+        code: "parse_error",
+        error: looksHtml
+          ? `P&R MCP returned an HTML page (HTTP ${res.status}) instead of a JSON-RPC response — likely a temporary gateway error. Nothing was generated; please retry.`
+          : `P&R MCP returned a non-JSON response (HTTP ${res.status}). Nothing was generated; please retry.`,
+      };
+    }
 
     if (payload.error) {
       return {
@@ -136,17 +156,41 @@ export async function callMcpTool<T = unknown>(
       };
     }
 
-    const text = extractText(payload.result);
-    if (text === null) {
-      return { ok: true, data: (payload.result ?? {}) as T };
+    const result = (payload.result ?? {}) as Record<string, unknown>;
+
+    // 1) MCP structuredContent, when the server provides it.
+    const structured = result.structuredContent;
+    if (structured && typeof structured === "object") {
+      return { ok: true, data: structured as T };
     }
 
-    try {
-      return { ok: true, data: JSON.parse(text) as T };
-    } catch {
-      // Tool returned plain text — wrap it.
-      return { ok: true, data: { text } as unknown as T };
+    // 2) First text block, JSON-parsed (this engine packs its payload as a
+    //    JSON string inside content[0].text).
+    const text = extractText(result);
+    if (text !== null) {
+      try {
+        return { ok: true, data: JSON.parse(text) as T };
+      } catch {
+        // The engine replied with plain text instead of a JSON payload —
+        // usually a human-readable status/error (credits, scope, queue…).
+        // Surface the engine's actual words instead of pretending success
+        // with an empty object.
+        console.error("[mcp/client] non-JSON text result:", text.slice(0, 240));
+        return {
+          ok: false,
+          code: "tool_error",
+          error: `P&R engine replied with plain text instead of a JSON payload: “${text.slice(0, 280)}”`,
+        };
+      }
     }
+
+    // 3) No text and no structuredContent — log for diagnosis and hand back
+    //    the raw envelope so callers see an honestly empty result.
+    console.error(
+      "[mcp/client] result had neither text nor structuredContent:",
+      JSON.stringify(result).slice(0, 240)
+    );
+    return { ok: true, data: result as T };
   } catch (err) {
     const isAbort = err instanceof Error && err.name === "AbortError";
     return {
@@ -223,10 +267,21 @@ export async function probeMcpStatus(force = false): Promise<McpStatus> {
       statusCache = base;
       return base;
     }
-    const payload = (await res.json()) as {
+    const rawBody = await res.text();
+    let payload: {
       result?: { serverInfo?: { name?: string; version?: string } };
       error?: { message?: string };
-    };
+    } | null = null;
+    try {
+      payload = JSON.parse(rawBody) as typeof payload;
+    } catch {
+      payload = null;
+    }
+    if (!payload) {
+      base.error = `non-JSON probe response (HTTP ${res.status})`;
+      statusCache = base;
+      return base;
+    }
     if (payload.error) {
       base.error = payload.error.message || "tools/list failed";
       statusCache = base;

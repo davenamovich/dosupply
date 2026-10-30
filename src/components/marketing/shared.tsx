@@ -122,7 +122,27 @@ export async function postJson<T>(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    const data = await res.json();
+    const raw = await res.text();
+    let data: (T & { error?: string; code?: string }) | null = null;
+    if (raw) {
+      try {
+        data = JSON.parse(raw) as T & { error?: string; code?: string };
+      } catch {
+        data = null;
+      }
+    }
+    if (!data) {
+      // Non-JSON body — almost always an HTML error page from a gateway/proxy
+      // (timeout on a long generation) or a crashed upstream. Never leak the
+      // raw "Unexpected token '<'" parse error into the UI.
+      const looksHtml = /^\s*<(?:!doctype|html)/i.test(raw);
+      data = {
+        error: looksHtml
+          ? `The server returned an HTML error page (HTTP ${res.status}) instead of JSON — usually a temporary gateway timeout on a long generation, or a transient proxy error. Nothing was generated; please try again in a moment.`
+          : `The server returned a non-JSON response (HTTP ${res.status}). Nothing was generated; please try again.`,
+        code: "non_json_response",
+      } as T & { error?: string; code?: string };
+    }
     return { ok: res.ok, status: res.status, data };
   } catch (err) {
     return {
