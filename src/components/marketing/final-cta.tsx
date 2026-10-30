@@ -32,8 +32,8 @@ export default function FinalCta() {
             I&apos;ve spent more than 20 years in lending, business development and
             advertising sales, and I&apos;m currently selling programmatic advertising at
             Consult TV. Relationships and follow-through are what I do best. For the last
-            12 months I&apos;ve been learning AI, and the moment I saw your posting I built
-            everything on this page: a sales assistant that turns a quote request into a conversation
+            12 months I&apos;ve been learning AI, and in the short time since I saw your
+            posting I built everything on this page: a sales assistant that turns a quote request into a conversation
             and alerts your team the moment a lead is ready, a content engine for social,
             email, video, SEO and review replies, and a 90-day plan to measure the results.
           </p>
