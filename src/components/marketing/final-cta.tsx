@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { ExternalLink, CalendarClock } from "lucide-react";
+import { Phone } from "lucide-react";
 import { SectionHeading } from "./section-heading";
 
 export default function FinalCta() {
@@ -52,23 +52,13 @@ export default function FinalCta() {
         </div>
 
         <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
-          <Button
-            asChild
-            size="lg"
-            variant="outline"
-            className="border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white"
-          >
-            <a href="https://plunderandriffle.com/" target="_blank" rel="noopener noreferrer">
-              <ExternalLink className="mr-2 h-4 w-4" />
-              Explore Plunder &amp; Riffle
-            </a>
-          </Button>
           <Button asChild size="lg" className="bg-amber-400 font-semibold text-black hover:bg-amber-300 glow-amber">
-            <a href="https://plunderandriffle.com/" target="_blank" rel="noopener noreferrer">
-              <CalendarClock className="mr-2 h-4 w-4" />
-              Discuss an Introduction
+            <a href="tel:+15133171760" aria-label="Call Dave at 513-317-1760 to discuss an introduction">
+              <Phone className="mr-2 h-4 w-4" />
+              Call to Discuss an Introduction
             </a>
           </Button>
+          <span className="w-full font-mono text-xs tracking-[0.18em] text-zinc-400">513-317-1760</span>
         </div>
 
         <p className="mt-8 font-mono text-[10px] uppercase tracking-[0.22em] text-zinc-600">
