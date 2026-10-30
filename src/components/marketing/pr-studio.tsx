@@ -442,7 +442,9 @@ function CreativeTab({
         </div>
         <div className="flex flex-col gap-2 lg:w-44">
           <Button
-            onClick={generate}
+            // Wrap it: passing the handler directly hands React's click event in
+            // as `inputArg`, so generate() threw on `.trim()` and died silently.
+            onClick={() => generate()}
             disabled={loading || !input.trim()}
             className="h-11 bg-teal-400 font-bold text-black hover:bg-teal-300"
           >
