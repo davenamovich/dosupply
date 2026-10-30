@@ -1,0 +1,320 @@
+====================================================================================================
+NAME: shop
+DESC: The /shop push pack: any product link or description → researched, ready-to-post copy (hooks, meme lines, iMessage thread, CTA, hashtags, first comment) plus up to 3 creatives (TEMP PAGE previews + PNGs + post_copy). 10 credits for the context + each format's list credits (list_ad_options); BYOK: $0.01. Each part refunded on its own failure. ~30–90s.
+SCHEMA: {
+ "type": "object",
+ "properties": {
+  "input": {
+   "type": "string",
+   "description": "A product/page link, or a description of the product when there is no link (\u22641500 chars)."
+  },
+  "direction": {
+   "type": "string",
+   "description": "Optional angle/audience/tone, e.g. \"for burnt-out PMs\"."
+  },
+  "language": {
+   "type": "string",
+   "description": "Default English."
+  },
+  "creatives": {
+   "type": "array",
+   "items": {
+    "type": "string",
+    "enum": [
+     "image",
+     "carousel",
+     "confession",
+     "hottake",
+     "hybrid",
+     "xaiver-reply"
+    ]
+   },
+   "description": "Creative formats to build (max 3); omitted = one single meme, [] = copy only. iMessage / text-message thread \u2192 \"hybrid\"; carousel / slideshow / multi-slide \u2192 \"carousel\"; hot take / opinion \u2192 \"hottake\"; confession \u2192 \"confession\"; single meme / static image \u2192 \"image\"."
+  },
+  "includeAssets": {
+   "type": "boolean",
+   "description": "Render PNGs and return URLs (default true, free)."
+  },
+  "sizes": {
+   "type": "array",
+   "items": {
+    "type": "string",
+    "enum": [
+     "square",
+     "feed",
+     "story"
+    ]
+   },
+   "description": "PNG sizes (default all). Not the creative `format`."
+  },
+  "allFrames": {
+   "type": "boolean",
+   "description": "Export every slide (max 10). Default true for carousel/hybrid."
+  },
+  "ref": {
+   "type": "string",
+   "description": "Your referral code (returned in referralUrl)."
+  },
+  "brand": {
+   "type": "string",
+   "description": "Brand key from list_ad_options (default house brand)."
+  },
+  "brandProfile": {
+   "type": "object",
+   "description": "Ad-hoc brand voice, overrides `brand`: name, voice (\u22641000), hashtag, token, ctaStyle {tone, action (no URL), linkPlacement first-comment|caption, avoid[], examples[]}.",
+   "properties": {
+    "name": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "name"
+   ]
+  }
+ },
+ "required": [
+  "input"
+ ]
+}
+====================================================================================================
+NAME: create_one_minute
+DESC: The /1minute engine. Give it ONE of: a topic (the engine WRITES and VOICES a ~60s Uncomfortable Truth take), your own https mp3/m4a/wav (<=24MB — YOUR voice), or a link to extract audio from (YouTube clip, here.now page, direct mp3). It becomes a 9:16 captioned page on a temp page. 25 credits ($0.25, BYOK: $0.01, page only; the MP4 is a separate step), refunded on failure. Returns a jobId at once — poll get_job_status (kind one_minute). After the human approves, regen_one_minute for another look or request_mp4 for video.
+SCHEMA: {
+ "type": "object",
+ "properties": {
+  "topic": {
+   "type": "string",
+   "description": "The take's topic (<=600 chars). Use this OR audio_url OR link."
+  },
+  "audio_url": {
+   "type": "string",
+   "description": "https link to your OWN mp3/m4a/wav (<=24MB). Use this OR topic OR link."
+  },
+  "link": {
+   "type": "string",
+   "description": "A page/clip URL (YouTube, here.now page, direct mp3) to extract audio from. Use this OR topic OR audio_url."
+  },
+  "title": {
+   "type": "string"
+  },
+  "language": {
+   "type": "string",
+   "description": "Language name or code, e.g. es, ja, Portuguese."
+  }
+ }
+}
+====================================================================================================
+NAME: create_phone_demo
+DESC: The /phone command: a ~60s sit-down where the posts (memes, a ranked list, a carousel) land on the host's phone. Send ONE input: `topic` (`shape` picks the cut), `script` (quoted words and [phone:meme] … [/phone] bits are what the phone shows), `clip`, or audio you already have (never re-voiced; a `script` sent with it is its captions). For a full sit-down with no phone bits use create_sitdown. 25 credits ($0.25; BYOK: $0.01), refunded on failure. Returns a jobId — poll get_job_status (kind sitdown), usually 1–2 min. Done carries pageUrl (a preview, no MP4): show it; call request_mp4 only after the human approves.
+SCHEMA: {
+ "type": "object",
+ "properties": {
+  "topic": {
+   "type": "string",
+   "description": "Easiest: one line on what the video is about (\u2264400 chars), e.g. a product and who it's for. Use this OR script OR clip OR an audio source."
+  },
+  "shape": {
+   "type": "string",
+   "enum": [
+    "mixed",
+    "imessage",
+    "ranked"
+   ],
+   "description": "With topic: mixed (default) = memes, a list or a carousel on the phone; ranked = a ranked list, read out. imessage is the retired one-thread cut and now runs as mixed."
+  },
+  "script": {
+   "type": "string",
+   "description": "Your own words instead of the writer's (\u22646000 chars, 'NAME: line' for a guest). With audio: its captions instead."
+  },
+  "clip": {
+   "oneOf": [
+    {
+     "type": "string"
+    },
+    {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    }
+   ],
+   "description": "One https link, or up to 3: an mp3, an X / YouTube post, or a direct .mp4. The first plays full-frame with its own sound; the show then answers all of them. A bare clip link in `topic` counts too."
+  },
+  "clip_seconds": {
+   "type": "number",
+   "description": "Seconds of the first clip to play: 3\u201330, default 15."
+  },
+  "title": {
+   "type": "string",
+   "description": "The show title."
+  },
+  "scene": {
+   "type": "string",
+   "enum": [
+    "desk",
+    "lounge",
+    "podcast",
+    "news",
+    "stage"
+   ],
+   "description": "The set the host sits on (default: the owner's saved set)."
+  },
+  "outfit": {
+   "type": "string",
+   "enum": [
+    "tie",
+    "tee"
+   ],
+   "description": "Tie, or the show's tee (default: the brand's look)."
+  },
+  "accessory": {
+   "type": "string",
+   "description": "2\u20135 words on the host's shirt, e.g. \"I LOVE GARY VEE\" (\u226440 chars). Implies outfit: tee."
+  },
+  "language": {
+   "type": "string",
+   "description": "Language name, e.g. Spanish. Default English."
+  },
+  "audioscript_job_id": {
+   "type": "string",
+   "description": "A FINISHED create_audioscript job: reuse its take, never re-voiced (fastest)."
+  },
+  "audio_url": {
+   "type": "string",
+   "description": "https link to a recording (mp3/m4a/wav, \u226424MB, \u22643 min), pre-flighted before charging."
+  },
+  "audio_base64": {
+   "type": "string",
+   "description": "Audio bytes base64-encoded. Only a short clip fits the 1 MiB /api/mcp limit \u2014 longer audio must be audio_url."
+  }
+ }
+}
+====================================================================================================
+NAME: get_job_status
+DESC: Poll any async job by kind: mp4 (request_mp4), one_minute (create_one_minute), localize (localize_1minute), sitdown (create_sitdown / create_phone_demo / create_best_of / create_ridiculous / create_news), demo_pack (create_demo_pack). Free. Status is rendering (localize adds step + progress), done (with mp4Url or pageUrl and the next steps) or failed (credit refunded). A done sitdown job carries `followUp`: pass its jobId to create_followup to make another post from the same script. Poll every ~20–30s.
+SCHEMA: {
+ "type": "object",
+ "properties": {
+  "kind": {
+   "type": "string",
+   "enum": [
+    "mp4",
+    "one_minute",
+    "localize",
+    "audioscript",
+    "sitdown",
+    "demo_pack",
+    "amazon_review",
+    "funnel"
+   ]
+  },
+  "jobId": {
+   "type": "string"
+  }
+ },
+ "required": [
+  "kind",
+  "jobId"
+ ]
+}
+====================================================================================================
+NAME: request_mp4
+DESC: AFTER a human has approved a preview, start rendering an MP4 of that temp page (25 credits = $0.25; BYOK: $0.01 with your own Railway worker saved, else the full $0.25; refunded on failure). Rendering takes 1–3 minutes. To avoid polling: pass callback_url (we POST the signed result when it finishes) and/or wait_seconds (hold this call open up to 100s and return the finished mp4Url inline; if it isn't done by then you still get the jobId for get_job_status (kind mp4)). Never render MP4s for unapproved previews.
+SCHEMA: {
+ "type": "object",
+ "properties": {
+  "pageUrl": {
+   "type": "string",
+   "description": "The approved pageUrl from generate_ad_creative / generate_multilanguage_ads."
+  },
+  "callback_url": {
+   "type": "string",
+   "description": "Optional https webhook. Receives the signed done/failed result; the response carries the webhook secret once."
+  },
+  "wait_seconds": {
+   "type": "number",
+   "description": "Optional, 0-100. Wait this long for the MP4 and return it in the same call."
+  }
+ },
+ "required": [
+  "pageUrl"
+ ]
+}
+====================================================================================================
+NAME: generate_ad_creative
+DESC: One ad creative in one language, in the format you pass as `format` (iMessage / text-message thread → "hybrid"; carousel / slideshow / multi-slide → "carousel"; hot take / opinion → "hottake"; confession → "confession"; single meme / static image → "image"; omitted = single meme). Returns a TEMP PAGE preview (not an MP4), PNG URLs (adAssets, media_url), post_copy and a referralUrl. Costs the format's list credits (see list_ad_options); BYOK: $0.01.
+SCHEMA: {
+ "type": "object",
+ "properties": {
+  "brief": {
+   "type": "string",
+   "description": "What the ad is about: product, hook, angle."
+  },
+  "language": {
+   "type": "string",
+   "description": "Default English."
+  },
+  "format": {
+   "type": "string",
+   "enum": [
+    "image",
+    "carousel",
+    "confession",
+    "hottake",
+    "hybrid",
+    "xaiver-reply"
+   ],
+   "description": "Creative format \u2014 set it to what was asked; omitted = single meme. iMessage / text-message thread \u2192 \"hybrid\"; carousel / slideshow / multi-slide \u2192 \"carousel\"; hot take / opinion \u2192 \"hottake\"; confession \u2192 \"confession\"; single meme / static image \u2192 \"image\"."
+  },
+  "audience": {
+   "type": "string"
+  },
+  "offer": {
+   "type": "string",
+   "description": "Offer or call to action to work into the creative."
+  },
+  "includeAssets": {
+   "type": "boolean",
+   "description": "Render PNGs and return URLs (default true, free)."
+  },
+  "sizes": {
+   "type": "array",
+   "items": {
+    "type": "string",
+    "enum": [
+     "square",
+     "feed",
+     "story"
+    ]
+   },
+   "description": "PNG sizes (default all). Not the creative `format`."
+  },
+  "allFrames": {
+   "type": "boolean",
+   "description": "Export every slide (max 10). Default true for carousel/hybrid."
+  },
+  "ref": {
+   "type": "string",
+   "description": "Your referral code (returned in referralUrl)."
+  },
+  "brand": {
+   "type": "string",
+   "description": "Brand key from list_ad_options (default house brand)."
+  },
+  "brandProfile": {
+   "type": "object",
+   "description": "Ad-hoc brand voice, overrides `brand`: name, voice (\u22641000), hashtag, token, ctaStyle {tone, action (no URL), linkPlacement first-comment|caption, avoid[], examples[]}.",
+   "properties": {
+    "name": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "name"
+   ]
+  }
+ },
+ "required": [
+  "brief"
+ ]
+}

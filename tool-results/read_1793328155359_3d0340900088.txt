@@ -1,0 +1,256 @@
+     1→list_ad_options | List what the meme engine can produce for ads: supported languages, creative formats (with list credit cost; BYOK keys pay $0.01 per MCP call) and brand voices. Call this first. Pass the chosen format id as `format` (gen
+     2→
+     3→generate_ad_creative | One ad creative in one language, in the format you pass as `format` (iMessage / text-message thread → "hybrid"; carousel / slideshow / multi-slide → "carousel"; hot take / opinion → "hottake"; confession → "confession"; 
+     4→    *brief : {"type": "string", "description": "What the ad is about: product, hook, angle."}
+     5→     language : {"type": "string", "description": "Default English."}
+     6→     format : {"type": "string", "enum": ["image", "carousel", "confession", "hottake", "hybrid", "xaiver-reply"], "description": "Creative format \u2014 set it to what was asked; omitted = single meme. iMessage / text-message thread \u2192 \"hybrid\"; carousel / slideshow 
+     7→     audience : {"type": "string"}
+     8→     offer : {"type": "string", "description": "Offer or call to action to work into the creative."}
+     9→     includeAssets : {"type": "boolean", "description": "Render PNGs and return URLs (default true, free)."}
+    10→     sizes : {"type": "array", "items": {"type": "string", "enum": ["square", "feed", "story"]}, "description": "PNG sizes (default all). Not the creative `format`."}
+    11→     allFrames : {"type": "boolean", "description": "Export every slide (max 10). Default true for carousel/hybrid."}
+    12→     ref : {"type": "string", "description": "Your referral code (returned in referralUrl)."}
+    13→     brand : {"type": "string", "description": "Brand key from list_ad_options (default house brand)."}
+    14→     brandProfile : {"type": "object", "description": "Ad-hoc brand voice, overrides `brand`: name, voice (\u22641000), hashtag, token, ctaStyle {tone, action (no URL), linkPlacement first-comment|caption, avoid[], examples[]}.", "properties": {"name": {"type": "string"}}, "requi
+    15→
+    16→generate_multilanguage_ads | Generate the SAME ad concept in several languages at once (up to 6 per call, run in parallel), all in the one `format` you pass (iMessage / text-message thread → "hybrid"; carousel / slideshow / multi-slide → "carousel";
+    17→    *brief : {"type": "string"}
+    18→    *languages : {"type": "array", "items": {"type": "string"}, "description": "e.g. [\"Spanish\",\"Japanese\",\"Hindi\"]"}
+    19→     format : {"type": "string", "enum": ["image", "carousel", "confession", "hottake", "hybrid", "xaiver-reply"], "description": "Creative format \u2014 set it to what was asked; omitted = single meme. iMessage / text-message thread \u2192 \"hybrid\"; carousel / slideshow 
+    20→     audience : {"type": "string"}
+    21→     offer : {"type": "string"}
+    22→     includeAssets : {"type": "boolean", "description": "Render PNGs and return URLs (default true, free)."}
+    23→     sizes : {"type": "array", "items": {"type": "string", "enum": ["square", "feed", "story"]}, "description": "PNG sizes (default all). Not the creative `format`."}
+    24→     allFrames : {"type": "boolean", "description": "Export every slide (max 10). Default true for carousel/hybrid."}
+    25→     ref : {"type": "string", "description": "Your referral code (returned in referralUrl)."}
+    26→     brand : {"type": "string", "description": "Brand key from list_ad_options (default house brand)."}
+    27→     brandProfile : {"type": "object", "description": "Ad-hoc brand voice, overrides `brand`: name, voice (\u22641000), hashtag, token, ctaStyle {tone, action (no URL), linkPlacement first-comment|caption, avoid[], examples[]}.", "properties": {"name": {"type": "string"}}, "requi
+    28→
+    29→export_ad_assets | Render ad-ready files from a page you already generated: PNGs at 1:1 (1080x1080), 4:5 (1080x1350) and 9:16 (1080x1920), optionally a 9:16 MP4 (+25 credits, same $0.25 as request_mp4; BYOK: $0.01 with your own Railway wor
+    30→    *pageUrl : {"type": "string", "description": "Engine page URL from generate_ad_creative."}
+    31→     title : {"type": "string"}
+    32→     includeAssets : {"type": "boolean", "description": "Render PNGs and return URLs (default true, free)."}
+    33→     sizes : {"type": "array", "items": {"type": "string", "enum": ["square", "feed", "story"]}, "description": "PNG sizes (default all). Not the creative `format`."}
+    34→     allFrames : {"type": "boolean", "description": "Export every slide (max 10). Default true for carousel/hybrid."}
+    35→
+    36→request_mp4 | AFTER a human has approved a preview, start rendering an MP4 of that temp page (25 credits = $0.25; BYOK: $0.01 with your own Railway worker saved, else the full $0.25; refunded on failure). Rendering takes 1–3 minutes. 
+    37→    *pageUrl : {"type": "string", "description": "The approved pageUrl from generate_ad_creative / generate_multilanguage_ads."}
+    38→     callback_url : {"type": "string", "description": "Optional https webhook. Receives the signed done/failed result; the response carries the webhook secret once."}
+    39→     wait_seconds : {"type": "number", "description": "Optional, 0-100. Wait this long for the MP4 and return it in the same call."}
+    40→
+    41→create_funnel | /funnel: ONE offer link becomes voiced content whose CTA is that link: captions (+ an iMessage thread; voiced typography page, no memes), memes (voiced page with memes + a picture or iMessage meme) or a stick-figure stor
+    42→     url : {"type": "string", "description": "The offer link, kept exactly (referral params untouched). Not needed with funnel_id."}
+    43→     format : {"type": "string", "description": "captions | memes | stickfigures | all | bestof"}
+    44→     kind : {"type": "string", "description": "memes only: meme | imessage (default: alternates)."}
+    45→     funnel_id : {"type": "string", "description": "Earlier funnelId: switch format, regenerate or describe without the link."}
+    46→     variation : {"type": "string", "description": "same = regenerate, next = new angle (default same)."}
+    47→     description : {"type": "string", "description": "What the offer is and who it's for, when the page can't be read."}
+    48→     audience : {"type": "string"}
+    49→     tone : {"type": "string"}
+    50→     language : {"type": "string"}
+    51→     cta : {"type": "string", "description": "Button label under the preview. Default: from the product name."}
+    52→     angle : {"type": "string"}
+    53→
+    54→create_one_minute | The /1minute engine. Give it ONE of: a topic (the engine WRITES and VOICES a ~60s Uncomfortable Truth take), your own https mp3/m4a/wav (<=24MB — YOUR voice), or a link to extract audio from (YouTube clip, here.now page,
+    55→     topic : {"type": "string", "description": "The take's topic (<=600 chars). Use this OR audio_url OR link."}
+    56→     audio_url : {"type": "string", "description": "https link to your OWN mp3/m4a/wav (<=24MB). Use this OR topic OR link."}
+    57→     link : {"type": "string", "description": "A page/clip URL (YouTube, here.now page, direct mp3) to extract audio from. Use this OR topic OR audio_url."}
+    58→     title : {"type": "string"}
+    59→     language : {"type": "string", "description": "Language name or code, e.g. es, ja, Portuguese."}
+    60→
+    61→create_video_pack | The /video bundle in one call: from the user's recording (audio_url), a topic or a link, makes the voiced, captioned 9:16 /video page, then — from that take's own transcript — a meme slideshow, an iMessage page and a hot
+    62→     audio_url : {"type": "string", "description": "https link to the user's recorded audio (mp3/m4a/wav, <=24MB, <=3 min). Use this OR topic OR link OR source_job_id."}
+    63→     topic : {"type": "string", "description": "A topic instead of audio (<=600 chars): the engine writes and voices the take."}
+    64→     link : {"type": "string", "description": "A page/clip URL to extract audio from."}
+    65→     source_job_id : {"type": "string", "description": "Resume: the jobId a previous call returned while the take was still rendering. No new take is created or charged."}
+    66→     title : {"type": "string"}
+    67→     language : {"type": "string", "description": "Language of the source take (default: as spoken / English)."}
+    68→     languages : {"type": "array", "items": {"type": "string"}, "description": "Optional extra languages for the video, e.g. [\"Spanish\",\"Japanese\"] (max 3, 40 credits each)."}
+    69→     wait_seconds : {"type": "number", "description": "How long to hold this call open (default 100, max 100)."}
+    70→     includeAssets : {"type": "boolean", "description": "Render PNGs and return URLs (default true, free)."}
+    71→     sizes : {"type": "array", "items": {"type": "string", "enum": ["square", "feed", "story"]}, "description": "PNG sizes (default all). Not the creative `format`."}
+    72→     allFrames : {"type": "boolean", "description": "Export every slide (max 10). Default true for carousel/hybrid."}
+    73→     ref : {"type": "string", "description": "Your referral code (returned in referralUrl)."}
+    74→
+    75→localize_1minute | One call from source to localized videos: makes a /1minute take from a topic, your OWN audio_url or a link (or reuses a done take's jobId, no new source), then localizes it into up to 4 languages in parallel (native rewr
+    76→     topic : {"type": "string", "description": "The take's topic (<=600 chars). Use this OR audio_url OR link."}
+    77→     audio_url : {"type": "string", "description": "https link to your OWN mp3/m4a/wav (<=24MB). Use this OR topic OR link."}
+    78→     link : {"type": "string", "description": "A page/clip URL to extract audio from. Use this OR topic OR audio_url."}
+    79→     jobId : {"type": "string", "description": "A done /1minute take to localize instead (no new source is made or charged)."}
+    80→     title : {"type": "string"}
+    81→     language : {"type": "string", "description": "Source language (default English)."}
+    82→    *languages : {"type": "array", "items": {"type": "string"}, "description": "Target languages, e.g. [\"Spanish\",\"Japanese\",\"French\"] (max 4)."}
+    83→     wait_seconds : {"type": "number", "description": "How long to hold this call open for the whole pipeline (default 90, max 100)."}
+    84→     includeAssets : {"type": "boolean", "description": "Render PNGs and return URLs (default true, free)."}
+    85→     sizes : {"type": "array", "items": {"type": "string", "enum": ["square", "feed", "story"]}, "description": "PNG sizes (default all). Not the creative `format`."}
+    86→     allFrames : {"type": "boolean", "description": "Export every slide (max 10). Default true for carousel/hybrid."}
+    87→     ref : {"type": "string", "description": "Your referral code (returned in referralUrl)."}
+    88→
+    89→publish_clip | Publicly post a finished clip to X and/or Telegram with the poster's ?ref= tracking link attached. Only call this AFTER the human has approved this exact clip and caption for posting — it goes live at once and can't be u
+    90→    *mp4Url : {"type": "string", "description": "https link to the finished clip (the mp4Url from get_job_status, kind mp4)."}
+    91→    *networks : {"type": "array", "items": {"type": "string", "enum": ["x", "telegram"]}, "description": "Where to post."}
+    92→     caption : {"type": "string", "description": "Post copy \u2014 e.g. the localize result's socialCopy.headline."}
+    93→     chatId : {"type": "string", "description": "Telegram target chat/channel (optional; defaults to the owner's chat)."}
+    94→     ref : {"type": "string", "description": "Tracking code (optional; defaults to the poster's telegram id)."}
+    95→
+    96→chat_with_brand | Talk to a branded bot (e.g. brand "joblessjoe" for Jobless Joe; keys from list_ad_options) in its own voice. Send the conversation so far as `messages` (you keep the history), or one `message`. Returns `reply`. 1 credit 
+    97→     message : {"type": "string", "description": "The next thing the human says (use this or messages)."}
+    98→     messages : {"type": "array", "description": "Whole conversation so far, oldest first, ending with the user's turn. Last 12 are kept.", "items": {"type": "object", "properties": {"role": {"type": "string", "enum": ["user", "assistant"]}, "content": {"type": "string"}}, "r
+    99→     language : {"type": "string", "description": "Reply in this language (default: whatever the human writes in)."}
+   100→     brand : {"type": "string", "description": "Brand key from list_ad_options (default house brand)."}
+   101→     brandProfile : {"type": "object", "description": "Ad-hoc brand voice, overrides `brand`: name, voice (\u22641000), hashtag, token, ctaStyle {tone, action (no URL), linkPlacement first-comment|caption, avoid[], examples[]}.", "properties": {"name": {"type": "string"}}, "requi
+   102→
+   103→create_sitdown | The /sitdown command: the stick-figure host at a talk-show desk, voiced on Fish Audio. Send ONE input: `topic` (the writer drafts it; add `guest` for an interview), `script` (spoken as written; "NAME:" lines are a guest)
+   104→     topic : {"type": "string", "description": "Easiest: one line on what the segment is about (\u2264400 chars); the writer drafts it. Use this OR script OR links OR an audio source."}
+   105→     script : {"type": "string", "description": "The words to speak, as written (\u22646000 chars). Lines starting \"NAME:\" are a guest. With audio: its captions instead. Use this OR topic OR links OR an audio source."}
+   106→     links : {"type": "array", "items": {"type": "string"}, "description": "1\u20135 https links for a best-of reel: a temp page (/m/\u2026) or a direct .mp4/.gif/.png. Use this OR topic/script/audio."}
+   107→     theme : {"type": "string", "description": "With links: the theme the countdown hangs on, e.g. \"job hunt fails\" (\u2264120 chars)."}
+   108→     guest : {"type": "string", "description": "With topic: a guest name to make it an interview, e.g. \"Sam\"."}
+   109→     clip : {"oneOf": [{"type": "string"}, {"type": "array", "items": {"type": "string"}}], "description": "One https link, or up to 3: an mp3, an X / YouTube post, or a direct .mp4. The first plays full-frame with its own sound; the show then answers all of them. A bare 
+   110→     clip_seconds : {"type": "number", "description": "Seconds of the first clip to play: 3\u201330, default 15."}
+   111→     title : {"type": "string", "description": "The show title."}
+   112→     scene : {"type": "string", "enum": ["desk", "lounge", "podcast", "news", "stage"], "description": "The set the host sits on (default: the owner's saved set)."}
+   113→     outfit : {"type": "string", "enum": ["tie", "tee"], "description": "Tie, or the show's tee (default: the brand's look)."}
+   114→     accessory : {"type": "string", "description": "2\u20135 words on the host's shirt, e.g. \"I LOVE GARY VEE\" (\u226440 chars). Implies outfit: tee."}
+   115→     joe : {"type": "boolean", "description": "Host the show as Jobless Joe (his cast and look) instead of the key owner's saved host."}
+   116→     language : {"type": "string", "description": "Language name, e.g. Spanish. Default English."}
+   117→     audioscript_job_id : {"type": "string", "description": "A FINISHED create_audioscript job: reuse its take, never re-voiced (fastest)."}
+   118→     audio_url : {"type": "string", "description": "https link to a recording (mp3/m4a/wav, \u226424MB, \u22643 min), pre-flighted before charging."}
+   119→     audio_base64 : {"type": "string", "description": "Audio bytes base64-encoded. Only a short clip fits the 1 MiB /api/mcp limit \u2014 longer audio must be audio_url."}
+   120→
+   121→create_phone_demo | The /phone command: a ~60s sit-down where the posts (memes, a ranked list, a carousel) land on the host's phone. Send ONE input: `topic` (`shape` picks the cut), `script` (quoted words and [phone:meme] … [/phone] bits ar
+   122→     topic : {"type": "string", "description": "Easiest: one line on what the video is about (\u2264400 chars), e.g. a product and who it's for. Use this OR script OR clip OR an audio source."}
+   123→     shape : {"type": "string", "enum": ["mixed", "imessage", "ranked"], "description": "With topic: mixed (default) = memes, a list or a carousel on the phone; ranked = a ranked list, read out. imessage is the retired one-thread cut and now runs as mixed."}
+   124→     script : {"type": "string", "description": "Your own words instead of the writer's (\u22646000 chars, 'NAME: line' for a guest). With audio: its captions instead."}
+   125→     clip : {"oneOf": [{"type": "string"}, {"type": "array", "items": {"type": "string"}}], "description": "One https link, or up to 3: an mp3, an X / YouTube post, or a direct .mp4. The first plays full-frame with its own sound; the show then answers all of them. A bare 
+   126→     clip_seconds : {"type": "number", "description": "Seconds of the first clip to play: 3\u201330, default 15."}
+   127→     title : {"type": "string", "description": "The show title."}
+   128→     scene : {"type": "string", "enum": ["desk", "lounge", "podcast", "news", "stage"], "description": "The set the host sits on (default: the owner's saved set)."}
+   129→     outfit : {"type": "string", "enum": ["tie", "tee"], "description": "Tie, or the show's tee (default: the brand's look)."}
+   130→     accessory : {"type": "string", "description": "2\u20135 words on the host's shirt, e.g. \"I LOVE GARY VEE\" (\u226440 chars). Implies outfit: tee."}
+   131→     language : {"type": "string", "description": "Language name, e.g. Spanish. Default English."}
+   132→     audioscript_job_id : {"type": "string", "description": "A FINISHED create_audioscript job: reuse its take, never re-voiced (fastest)."}
+   133→     audio_url : {"type": "string", "description": "https link to a recording (mp3/m4a/wav, \u226424MB, \u22643 min), pre-flighted before charging."}
+   134→     audio_base64 : {"type": "string", "description": "Audio bytes base64-encoded. Only a short clip fits the 1 MiB /api/mcp limit \u2014 longer audio must be audio_url."}
+   135→
+   136→create_ridiculous | The /ridiculous command: one ~30s episode of Jobless Joe's meme reaction show — Joe roasts the topic in five scenes while Ralph acts it out on a giant TV. `topic` is a subject, a link (roasted as a website autopsy), a bu
+   137→    *topic : {"type": "string", "description": "What the episode roasts (\u2264400 chars): a topic, a link, a business, or e.g. \"roast my competitor's ad\"."}
+   138→     format : {"type": "string", "enum": ["ai", "adcrimes", "jobless", "autopsy", "court", "plug"], "description": "Force a segment. Default: picked from the topic (a link is a website autopsy)."}
+   139→     alt_ending : {"type": "boolean", "description": "Use the episode's alternate last line instead of the main one."}
+   140→     language : {"type": "string", "description": "Default English."}
+   141→
+   142→create_news | Telegram /joenews (not /news). Live sources. Desk/tv, 45–120s. mode or topic; short|standard|deep; language. Refunds if none answer. 25 credits ($0.25; BYOK $0.01). Poll get_job_status (sitdown): pageUrl, caption, source
+   143→     mode : {"type": "string", "enum": ["general", "ai", "crypto", "business", "internet"], "description": "Default general (top stories). Ignored with a topic."}
+   144→     topic : {"type": "string", "description": "Report on this instead (\u2264200 chars)."}
+   145→     length : {"type": "string", "enum": ["short", "standard", "deep"], "description": "\u224845s \u00b7 \u224890s (default) \u00b7 \u22482 min."}
+   146→     layout : {"type": "string", "enum": ["desk", "tv"], "description": "desk (default): Joe + Phony showing each story's picture; tv: the giant TV."}
+   147→     pages : {"type": "array", "items": {"type": "string"}, "description": "\u22643 https pages that play on Joe's TV: temp /m/ page, .mp4/.gif/.png, here.now or plunderandriffle.com page."}
+   148→     audio_url : {"type": "string", "description": "https mp3/wav/m4a that plays first; Joe reacts."}
+   149→     language : {"type": "string", "description": "Default English."}
+   150→
+   151→create_best_of | The /sitdown bestof command: 1–5 temp pages or direct media links play, silent, on the sidekick's screen while the host counts them down — one voiced best-of reel. Give `links` and an optional `theme`. 25 credits ($0.25;
+   152→    *links : {"type": "array", "items": {"type": "string"}, "description": "1\u20135 https links: a temp page (/m/<id>) or a direct .mp4/.gif/.png. A whitespace-separated string works too."}
+   153→     theme : {"type": "string", "description": "Optional theme the countdown hangs on, e.g. \"job hunt fails\" (\u2264120 chars)."}
+   154→     scene : {"type": "string", "enum": ["desk", "lounge", "podcast", "news", "stage"], "description": "The set the host sits on (default: the owner's saved set)."}
+   155→     outfit : {"type": "string", "enum": ["tie", "tee"], "description": "Tie, or the show's tee (default: the brand's look)."}
+   156→     accessory : {"type": "string", "description": "2\u20135 words on the host's shirt, e.g. \"I LOVE GARY VEE\" (\u226440 chars). Implies outfit: tee."}
+   157→     language : {"type": "string", "description": "Language name, e.g. Spanish. Default English."}
+   158→
+   159→get_best_of | The /bestof command: a best-of page of FIVE generations. Returns this key's best five pages from the last 22h (free). With fewer than five (or refresh: true) it creates them from `topic`: 2 memes, an iMessage, a slidesho
+   160→     topic : {"type": "string", "description": "What new pages are about. Needed when there are not five past pages, or with refresh."}
+   161→     refresh : {"type": "boolean", "description": "Skip the past; create five new (spends credits)."}
+   162→     language : {"type": "string", "description": "Default English."}
+   163→     audience : {"type": "string"}
+   164→     offer : {"type": "string"}
+   165→     brand : {"type": "string", "description": "Brand key from list_ad_options."}
+   166→
+   167→shop | The /shop push pack: any product link or description → researched, ready-to-post copy (hooks, meme lines, iMessage thread, CTA, hashtags, first comment) plus up to 3 creatives (TEMP PAGE previews + PNGs + post_copy). 10 
+   168→    *input : {"type": "string", "description": "A product/page link, or a description of the product when there is no link (\u22641500 chars)."}
+   169→     direction : {"type": "string", "description": "Optional angle/audience/tone, e.g. \"for burnt-out PMs\"."}
+   170→     language : {"type": "string", "description": "Default English."}
+   171→     creatives : {"type": "array", "items": {"type": "string", "enum": ["image", "carousel", "confession", "hottake", "hybrid", "xaiver-reply"]}, "description": "Creative formats to build (max 3); omitted = one single meme, [] = copy only. iMessage / text-message thread \u2192
+   172→     includeAssets : {"type": "boolean", "description": "Render PNGs and return URLs (default true, free)."}
+   173→     sizes : {"type": "array", "items": {"type": "string", "enum": ["square", "feed", "story"]}, "description": "PNG sizes (default all). Not the creative `format`."}
+   174→     allFrames : {"type": "boolean", "description": "Export every slide (max 10). Default true for carousel/hybrid."}
+   175→     ref : {"type": "string", "description": "Your referral code (returned in referralUrl)."}
+   176→     brand : {"type": "string", "description": "Brand key from list_ad_options (default house brand)."}
+   177→     brandProfile : {"type": "object", "description": "Ad-hoc brand voice, overrides `brand`: name, voice (\u22641000), hashtag, token, ctaStyle {tone, action (no URL), linkPlacement first-comment|caption, avoid[], examples[]}.", "properties": {"name": {"type": "string"}}, "requi
+   178→
+   179→create_before_pitch | The /before pitch machine. Give it ONE person (their website, an x.com or linkedin link, or a sentence about them) and it builds a personalized pitch: a personal message, a meme, an iMessage thread and a voice-note scrip
+   180→    *input : {"type": "string", "description": "Website, x.com / linkedin link, or a sentence about the person (max 1500 chars)."}
+   181→     language : {"type": "string", "description": "Write and speak the pitch in this language (default English)."}
+   182→     offer : {"type": "string", "description": "What the sender is pitching (their service, offer\u2026). Defaults to the Meme Engine."}
+   183→
+   184→create_two_step | Jobless Joe's two-step outreach, Step 1. Give it ONE prospect (X handle, post link, website, linkedin, or a line about them): it researches them and drafts a 30-second gift meme about THAT product or brand (script, text 
+   185→    *input : {"type": "string", "description": "Handle, x.com post link, website, linkedin link, or a sentence about the prospect (max 1500 chars)."}
+   186→     language : {"type": "string", "description": "Default English."}
+   187→     redraft : {"type": "boolean", "description": "Write a new Step 1. Does not return the saved campaign."}
+   188→     offer : {"type": "string", "enum": ["gift", "mercor", "opportunity", "24hour"], "description": "Default gift: a meme about their product. mercor or opportunity only when the human asked for the Mercor data intro. 24hour needs price_usd."}
+   189→     price_usd : {"type": "number", "description": "The 24-hour price, only with offer 24hour."}
+   190→
+   191→continue_two_step | Two-step outreach, Step 2. Pass the campaign `id` from create_two_step and what the prospect replied. Only a clear yes writes the two-minute breakdown (10 credits, refunded otherwise); a no is logged and an unclear reply
+   192→    *id : {"type": "string", "description": "The campaign id from create_two_step."}
+   193→    *reply : {"type": "string", "description": "The prospect's reply, pasted as they wrote it."}
+   194→     language : {"type": "string", "description": "Optional output language."}
+   195→     funnel : {"type": "boolean", "description": "On a yes: also build a /funnel share page from their own page."}
+   196→     funnel_url : {"type": "string", "description": "Their offer page, when the campaign only has social links."}
+   197→
+   198→find_leads | Check up to 10 candidate prospects (handles, links, sites, or a line each) before create_two_step. Returns `leads` with real public material, and `skipped` with why (already_in_queue, declined, opted_out, ungrounded, dup
+   199→    *candidates : {"type": "array", "items": {"type": "string"}, "description": "Up to 10."}
+   200→
+   201→list_outreach_queue | This key's outreach queue, one entry per prospect (status, campaignId), newest first. Shared with /2step on Telegram. Free.
+   202→     status : {"type": "string", "enum": ["drafted", "sent", "skipped", "replied", "interested", "declined", "opted_out"]}
+   203→     limit : {"type": "integer", "description": "Default 50, max 500."}
+   204→
+   205→mark_outreach | Record what the human did with a draft: sent, skipped, or opted_out (never contact again). Pass campaign_id, or `prospect` (handle/link/name) to opt someone out. Replies go to continue_two_step. Only `sent` when the huma
+   206→     campaign_id : {"type": "string"}
+   207→     prospect : {"type": "string", "description": "Instead of campaign_id."}
+   208→    *status : {"type": "string", "enum": ["sent", "skipped", "opted_out"]}
+   209→     note : {"type": "string", "description": "Max 300 chars."}
+   210→
+   211→create_demo_pack | A day of posts for ONE company in one call: 5 memes, an iMessage about one of their products, a Top 10 and a slideshow, made for their feed from what we read about them, plus one page with 4 phones playing them under a s
+   212→     campaign_id : {"type": "string", "description": "From create_two_step."}
+   213→     input : {"type": "string", "description": "Instead of campaign_id."}
+   214→     product : {"type": "string", "description": "Product for the iMessage (default: one from their site)."}
+   215→     language : {"type": "string"}
+   216→
+   217→create_followup | The follow-up buttons over MCP: rebuild what a finished video ALREADY said as another post — same subject, same points, nothing new invented. Pass ONE source: `job_id` (a done sitdown/phone/best-of job from create_sitdow
+   218→     job_id : {"type": "string", "description": "A FINISHED sitdown or phone jobId \u2014 its own script becomes the material. Use this OR source_id OR context."}
+   219→     source_id : {"type": "string", "description": "The `id` from create_before_pitch \u2014 the pitch is remembered for 2h. Use this OR job_id OR context."}
+   220→     context : {"type": "string", "description": "Material to build from when there is no id: the script, the pitch text or the key points (\u22644000 chars). Use this OR job_id OR source_id."}
+   221→     title : {"type": "string", "description": "With context: what it is, e.g. \"Pitch for Maria\"."}
+   222→     kind : {"type": "string", "enum": ["sitdown", "phone", "pitch", "note"], "description": "With context: what the material came from (default note)."}
+   223→    *format : {"type": "string", "enum": ["meme", "slideshow", "hottake", "imessage"], "description": "The post to build: meme (one image), slideshow, hottake or imessage (a narrated thread)."}
+   224→     instruction : {"type": "string", "description": "Optional one-line direction for THIS piece (e.g. \"make it about the interview, not the layoff\"), \u2264300 chars."}
+   225→     language : {"type": "string", "description": "With context: output language. A job/pitch keeps its own."}
+   226→
+   227→get_bot_commands | Read a brand bot's commands and their state (command-registry.ts): `on` = in the bot's "/" menu, `hidden` = works when typed but isn't listed, `off` = blocked. Each command also has `available` (false = the bot doesn't h
+   228→    *brand : {"type": "string", "description": "The brand bot's key (e.g. \"joblessjoe\")."}
+   229→
+   230→set_bot_commands | Set which commands a brand bot shows. Send only the ones you're changing in `states`, e.g. {"submit":"off","videos":"on"}: on / hidden / off. Saving refreshes the bot's Telegram menu. Unknown commands, aliases (use `vide
+   231→    *brand : {"type": "string", "description": "The brand bot's key."}
+   232→    *states : {"type": "object", "description": "Command name (no slash) \u2192 \"on\" | \"hidden\" | \"off\".", "additionalProperties": {"type": "string", "enum": ["on", "hidden", "off"]}}
+   233→
+   234→list_bot_skills | List a brand bot's owner skills: saved prompts that run as their own "/" commands. Each has `command`, `description`, `prompt` and `state` (on / hidden / off). Also returns `limits` (max skills, prompt and description le
+   235→    *brand : {"type": "string", "description": "The brand bot's key."}
+   236→
+   237→save_bot_skill | Add or replace (matched by `command`) a skill on a brand bot: a saved prompt that becomes a new "/" command. `/weeklyrecap` runs the prompt in the brand's voice; whatever a member types after the command is the input; th
+   238→    *brand : {"type": "string", "description": "The brand bot's key."}
+   239→    *command : {"type": "string", "description": "The command name, without the slash, e.g. \"weeklyrecap\"."}
+   240→    *description : {"type": "string", "description": "Short line for the \"/\" menu (\u226480 chars)."}
+   241→    *prompt : {"type": "string", "description": "What the bot does when the command runs (10\u20132000 chars)."}
+   242→     state : {"type": "string", "enum": ["on", "hidden", "off"], "description": "Default on."}
+   243→
+   244→delete_bot_skill | Delete a skill from a brand bot by its command name (a name that doesn't exist is a no-op). Members can no longer run it; the bot's menu refreshes. Free. Needs a write-scope key that belongs to one of the brand's admins 
+   245→    *brand : {"type": "string", "description": "The brand bot's key."}
+   246→    *command : {"type": "string", "description": "The skill's command name, without the slash."}
+   247→
+   248→get_job_status | Poll any async job by kind: mp4 (request_mp4), one_minute (create_one_minute), localize (localize_1minute), sitdown (create_sitdown / create_phone_demo / create_best_of / create_ridiculous / create_news), demo_pack (crea
+   249→    *kind : {"type": "string", "enum": ["mp4", "one_minute", "localize", "audioscript", "sitdown", "demo_pack", "amazon_review", "funnel"]}
+   250→    *jobId : {"type": "string"}
+   251→
+   252→get_usage | Credits and $0.01 face value this key spent. period day (default), week, or month. By tool and format; MP4 broken out. scope=all is operator-only. Free. Forward-only.
+   253→     period : {"type": "string", "enum": ["day", "week", "month"], "description": "UTC day, rolling week, or month."}
+   254→     scope : {"type": "string", "enum": ["self", "all"], "description": "self (default) or all (operator)."}
+   255→
+   256→get_account | Show this API key's remaining credits (-1 = unlimited), usage and pricing path (byok = $0.01 per call, list = each tool's list credits).

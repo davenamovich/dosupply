@@ -1,0 +1,34 @@
+list_ad_options :: 
+generate_ad_creative :: *brief, language, format, audience, offer, includeAssets, sizes, allFrames, ref, brand, brandProfile
+generate_multilanguage_ads :: *brief, *languages, format, audience, offer, includeAssets, sizes, allFrames, ref, brand, brandProfile
+export_ad_assets :: *pageUrl, title, includeAssets, sizes, allFrames
+request_mp4 :: *pageUrl, callback_url, wait_seconds
+create_funnel :: url, format, kind, funnel_id, variation, description, audience, tone, language, cta, angle
+create_one_minute :: topic, audio_url, link, title, language
+create_video_pack :: audio_url, topic, link, source_job_id, title, language, languages, wait_seconds, includeAssets, sizes, allFrames, ref
+localize_1minute :: topic, audio_url, link, jobId, title, language, *languages, wait_seconds, includeAssets, sizes, allFrames, ref
+publish_clip :: *mp4Url, *networks, caption, chatId, ref
+chat_with_brand :: message, messages, language, brand, brandProfile
+create_sitdown :: topic, script, links, theme, guest, clip, clip_seconds, title, scene, outfit, accessory, joe, language, audioscript_job_id, audio_url, audio_base64
+create_phone_demo :: topic, shape, script, clip, clip_seconds, title, scene, outfit, accessory, language, audioscript_job_id, audio_url, audio_base64
+create_ridiculous :: *topic, format, alt_ending, language
+create_news :: mode, topic, length, layout, pages, audio_url, language
+create_best_of :: *links, theme, scene, outfit, accessory, language
+get_best_of :: topic, refresh, language, audience, offer, brand
+shop :: *input, direction, language, creatives, includeAssets, sizes, allFrames, ref, brand, brandProfile
+create_before_pitch :: *input, language, offer
+create_two_step :: *input, language, redraft, offer, price_usd
+continue_two_step :: *id, *reply, language, funnel, funnel_url
+find_leads :: *candidates
+list_outreach_queue :: status, limit
+mark_outreach :: campaign_id, prospect, *status, note
+create_demo_pack :: campaign_id, input, product, language
+create_followup :: job_id, source_id, context, title, kind, *format, instruction, language
+get_bot_commands :: *brand
+set_bot_commands :: *brand, *states
+list_bot_skills :: *brand
+save_bot_skill :: *brand, *command, *description, *prompt, state
+delete_bot_skill :: *brand, *command
+get_job_status :: *kind, *jobId
+get_usage :: period, scope
+get_account :: 
