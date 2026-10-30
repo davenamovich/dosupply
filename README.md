@@ -127,6 +127,39 @@ immediately falls back to that value.
 | `/api/keys`     | GET / POST / DELETE | Masked key status; save and clear keys (passcode-gated). |
 | `/api/status`   | GET           | MCP connection, key sources, active research provider.       |
 
+## DO Supply Sales Agent (`/sales-agent`)
+
+A standalone AI sales assistant that works the quote conversation instead of a one-way form: it
+identifies the part, searches inventory, asks only what is missing, saves the lead with the full
+transcript and alerts the sales team on Telegram the moment the lead is qualified. It does not touch
+the DO Supply website or its quote form.
+
+| URL                       | What it is                                                            |
+| ------------------------- | --------------------------------------------------------------------- |
+| `/sales-agent`            | Customer chat, plus six one-click sample conversations.               |
+| `/sales-agent/dashboard`  | Internal leads dashboard: transcript, inventory result, Telegram alert, follow-up status. |
+
+**Modules** (`src/lib/sales/`): `engine.ts` (conversation), `extract.ts` (part numbers, quantities,
+contact details), `inventory.ts` (provider chain), `conversation.ts` (lead qualification),
+`store.ts` (lead database), `telegram.ts` (alerts), `demo-products.ts` (30 sample parts).
+
+**Telegram.** Set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID`. A lead is alerted once, immediately
+after it has an email and a part requirement. Failed sends are retried (3 attempts, then again on
+later traffic or from the dashboard's *Retry now*), and the customer is only told the alert went out
+if Telegram confirmed delivery. With no credentials the alert is simulated and shown on the dashboard.
+
+**Inventory.** Providers are tried in order: `DOSUPPLY_CATALOG_API_URL` (live; the only one treated
+as verified), a database hook, `INVENTORY_CSV_PATH`, then built-in **DEMO DATA**. Prices, quantities
+and compatibility are never invented; the demo catalog carries no prices.
+
+**Storage.** Leads live in `db/sales-leads.json` (gitignored). That is fine for a demo, but the
+filesystem is ephemeral on Railway, so swap `store.ts` for a database before relying on it.
+
+**Dashboard access.** Requires `ADMIN_PASSCODE` when set; with it unset the dashboard is open in
+development and closed in production.
+
+Test without a server: `bun run tests/sales-agent.ts`.
+
 ## Smoke test
 
 One command checks that a running instance is healthy:
