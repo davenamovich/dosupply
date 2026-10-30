@@ -33,6 +33,20 @@ export type McpErrorCode =
   | "parse_error";
 
 /**
+ * JSON-RPC 2.0 envelope returned by every MCP POST.
+ *
+ * Named explicitly rather than cast as `typeof payload`: inside its own
+ * initializer, `typeof payload` resolves to the already-narrowed `null` type,
+ * which narrowed the variable to `never` after the null guard.
+ */
+type JsonRpcEnvelope<R> = {
+  jsonrpc?: string;
+  id?: number | null;
+  result?: R;
+  error?: { code?: number; message?: string };
+};
+
+/**
  * Key resolution: runtime BYOK store first (pasted from the setup panel),
  * then the PLUNDER_RIFFLE_API_KEY env var. Both stay server-side only.
  */
@@ -129,14 +143,9 @@ export async function callMcpTool<T = unknown>(
     }
 
     const rawBody = await res.text();
-    let payload: {
-      jsonrpc?: string;
-      id?: number | null;
-      result?: unknown;
-      error?: { code?: number; message?: string };
-    } | null = null;
+    let payload: JsonRpcEnvelope<unknown> | null = null;
     try {
-      payload = JSON.parse(rawBody) as typeof payload;
+      payload = JSON.parse(rawBody) as JsonRpcEnvelope<unknown>;
     } catch {
       payload = null;
     }
@@ -273,12 +282,12 @@ export async function probeMcpStatus(force = false): Promise<McpStatus> {
       return base;
     }
     const rawBody = await res.text();
-    let payload: {
-      result?: { serverInfo?: { name?: string; version?: string } };
-      error?: { message?: string };
-    } | null = null;
+    let payload: JsonRpcEnvelope<{ serverInfo?: { name?: string; version?: string } }> | null =
+      null;
     try {
-      payload = JSON.parse(rawBody) as typeof payload;
+      payload = JSON.parse(rawBody) as JsonRpcEnvelope<{
+        serverInfo?: { name?: string; version?: string };
+      }>;
     } catch {
       payload = null;
     }
