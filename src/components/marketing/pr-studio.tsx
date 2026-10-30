@@ -522,9 +522,24 @@ function CreativeTab({
   const generateSeconds = useElapsedSince(loading ? startedAt : 0);
   const pageUrls = result ? collectPageUrls(result) : [];
   const vertical = result ? pickVerticalCreative(result) : null;
+  const [fetchingImages, setFetchingImages] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
+
+  /** Single creatives come back page-only (fast); render the free PNGs on request. */
+  async function getImages(pageUrl: string) {
+    setFetchingImages(true);
+    setImageError(null);
+    const { ok, data } = await postJson<{ adAssets?: unknown; vertical?: { url: string; label: string } | null }>(
+      "/api/mcp/assets",
+      { pageUrl }
+    );
+    if (ok && data.adAssets) setResult((prev) => (prev ? { ...prev, adAssets: data.adAssets, vertical: data.vertical ?? null } : prev));
+    else setImageError((data.error as string) || "The engine did not return images. Try again.");
+    setFetchingImages(false);
+  }
 
   /* Deliver to the studio phone as soon as a run lands: video first, then the
-     9:16 cut, then the rendered page. */
+     engine's page, then the 9:16 still. */
   const lastPhoneRef = useRef<string | null>(null);
   const phoneContent = result ? pickPhoneContent(result, pageUrls) : null;
   const phoneSrc = phoneContent && "src" in phoneContent ? phoneContent.src : null;
@@ -625,9 +640,20 @@ function CreativeTab({
           <div className="flex flex-wrap items-center gap-3">
             <p className="text-xs text-zinc-400">
               {vertical
-                ? "9:16 creative delivered to the studio phone."
-                : "No 9:16 creative in this run — check the raw payload below."}
+                ? "9:16 image ready. The engine's page is showing in the studio phone."
+                : "The engine's page is showing in the studio phone. Images are rendered on request."}
             </p>
+            {!vertical && pageUrls[0] && (
+              <button
+                onClick={() => getImages(pageUrls[0])}
+                disabled={fetchingImages}
+                className="rounded-lg border border-teal-400/50 bg-black/40 px-2.5 py-1 font-mono text-[9px] uppercase tracking-wider text-teal-200 transition-colors hover:bg-black disabled:opacity-50"
+                aria-label="Render the 9:16 image from this page"
+              >
+                {fetchingImages ? "Rendering…" : "Get 9:16 image (free)"}
+              </button>
+            )}
+            {imageError && <span className="text-xs text-red-300">{imageError}</span>}
             {vertical && (
               <button
                 onClick={() =>
