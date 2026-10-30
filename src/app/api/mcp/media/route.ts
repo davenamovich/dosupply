@@ -36,7 +36,7 @@ function isAllowedUrl(raw: string): URL | null {
   try {
     const u = new URL(raw);
     if (u.protocol !== "https:") return null;
-    if (!hostAllowed(u.hostname)) return null;
+    if (!hostAllowed(u.hostname, u.pathname)) return null;
     return u;
   } catch {
     return null;
@@ -82,7 +82,7 @@ async function fetchFollowing(url: URL, range: string | null, depth = 0): Promis
       res.body?.cancel().catch(() => {});
       if (!loc) throw new Error("redirect without location");
       const next = new URL(loc, url);
-      if (next.protocol !== "https:" || !hostAllowed(next.hostname)) {
+      if (next.protocol !== "https:" || !hostAllowed(next.hostname, next.pathname)) {
         throw new Error("redirect left the allowed hosts");
       }
       return fetchFollowing(next, range, depth + 1);
@@ -139,7 +139,7 @@ export async function GET(req: NextRequest) {
         415
       );
     }
-    if (!hostAllowed(videoSrc.hostname)) {
+    if (!hostAllowed(videoSrc.hostname, videoSrc.pathname)) {
       return jsonError("The extracted media URL is outside the allowed hosts.", 400);
     }
     target = videoSrc;

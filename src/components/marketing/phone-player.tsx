@@ -119,10 +119,12 @@ export default function PhonePlayer({
               <div className="relative h-full w-full">
                 <img
                   key={content.src}
-                  src={content.src}
+                  /* Same proxy as video: the engine 302s creatives to a signed
+                     R2 URL, which the browser cannot hotlink reliably. */
+                  src={`/api/mcp/media?url=${encodeURIComponent(content.src)}`}
                   alt={label ?? "Generated P&R creative shown in phone"}
                   className="h-full w-full object-cover"
-                  loading="lazy"
+                  loading="eager"
                 />
                 {content.label && (
                   <span className="absolute bottom-2 left-2 rounded bg-black/70 px-1.5 py-0.5 font-mono text-[9px] uppercase text-zinc-200">
