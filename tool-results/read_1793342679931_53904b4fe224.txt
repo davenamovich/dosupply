@@ -1,0 +1,1498 @@
+     1→"use client";
+     2→
+     3→import { useCallback, useEffect, useRef, useState } from "react";
+     4→import { Button } from "@/components/ui/button";
+     5→import { Input } from "@/components/ui/input";
+     6→import { Skeleton } from "@/components/ui/skeleton";
+     7→import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+     8→import { postJson, McpStatusPill } from "./shared";
+     9→import PhonePlayer, { loadStudioPhone, type PhoneContent } from "./phone-player";
+    10→import { cn } from "@/lib/utils";
+    11→import {
+    12→  Image as ImageIcon,
+    13→  Languages,
+    14→  AudioLines,
+    15→  KeyRound,
+    16→  RefreshCw,
+    17→  ExternalLink,
+    18→  ShieldCheck,
+    19→  Trash2,
+    20→  Check,
+    21→  Terminal,
+    22→  Eye,
+    23→  EyeOff,
+    24→  Clapperboard,
+    25→  Film,
+    26→  Play,
+    27→} from "lucide-react";
+    28→
+    29→/* ------------------------------------------------------------------ */
+    30→/* Shared types                                                        */
+    31→/* ------------------------------------------------------------------ */
+    32→
+    33→type KeyStatus = {
+    34→  service: string;
+    35→  configured: boolean;
+    36→  masked: string | null;
+    37→  source: "runtime" | "env" | null;
+    38→  setAt: string | null;
+    39→};
+    40→
+    41→type StatusData = {
+    42→  mcp: { connected: boolean; serverName: string | null; error: string | null };
+    43→  keys?: Record<string, { configured: boolean; masked: string | null; source: string | null }>;
+    44→};
+    45→
+    46→const FORMATS: { id: string; label: string }[] = [
+    47→  { id: "image", label: "Single meme" },
+    48→  { id: "carousel", label: "Carousel" },
+    49→  { id: "hottake", label: "Hot take" },
+    50→  { id: "hybrid", label: "iMessage thread" },
+    51→  { id: "confession", label: "Confession" },
+    52→];
+    53→
+    54→const LANGUAGES = [
+    55→  "English", "Spanish", "French", "German", "Italian", "Portuguese",
+    56→  "Russian", "Japanese", "Korean", "Chinese", "Arabic", "Hindi",
+    57→  "Dutch", "Turkish", "Polish", "Indonesian", "Thai", "Vietnamese",
+    58→  "Filipino", "Bengali", "Urdu", "Swedish", "Ukrainian",
+    59→];
+    60→
+    61→/* ------------------------------------------------------------------ */
+    62→/* Helpers                                                             */
+    63→/* ------------------------------------------------------------------ */
+    64→
+    65→/** Recursively collect image URLs from an unknown MCP payload. */
+    66→function collectImages(value: unknown, depth = 0, seen = new Set<string>()): { url: string; label?: string }[] {
+    67→  if (depth > 8 || seen.size > 40) return [];
+    68→  if (typeof value === "string") {
+    69→    if (/^https:\/\/\S+\.(png|jpe?g|webp|gif)(\?\S*)?$/i.test(value) && !seen.has(value)) {
+    70→      seen.add(value);
+    71→      return [{ url: value }];
+    72→    }
+    73→    return [];
+    74→  }
+    75→  if (Array.isArray(value)) {
+    76→    return value.flatMap((v) => collectImages(v, depth + 1, seen));
+    77→  }
+    78→  if (value && typeof value === "object") {
+    79→    const out: { url: string; label?: string }[] = [];
+    80→    const obj = value as Record<string, unknown>;
+    81→    if (typeof obj.url === "string" && /^https/i.test(obj.url) && /\.(png|jpe?g|webp|gif)(\?\S*)?$/i.test(obj.url) && !seen.has(obj.url)) {
+    82→      seen.add(obj.url);
+    83→      out.push({ url: obj.url, label: typeof obj.size === "string" ? obj.size : typeof obj.language === "string" ? obj.language : undefined });
+    84→    }
+    85→    for (const v of Object.values(obj)) out.push(...collectImages(v, depth + 1, seen));
+    86→    return out;
+    87→  }
+    88→  return [];
+    89→}
+    90→
+    91→/** Collect temp-page preview URLs. */
+    92→function collectPageUrls(value: unknown, depth = 0, seen = new Set<string>()): string[] {
+    93→  if (depth > 8 || seen.size > 20) return [];
+    94→  if (Array.isArray(value)) return value.flatMap((v) => collectPageUrls(v, depth + 1, seen));
+    95→  if (value && typeof value === "object") {
+    96→    const out: string[] = [];
+    97→    const obj = value as Record<string, unknown>;
+    98→    if (typeof obj.pageUrl === "string" && obj.pageUrl.startsWith("http") && !seen.has(obj.pageUrl)) {
+    99→      seen.add(obj.pageUrl);
+   100→      out.push(obj.pageUrl);
+   101→    }
+   102→    for (const v of Object.values(obj)) out.push(...collectPageUrls(v, depth + 1, seen));
+   103→    return out;
+   104→  }
+   105→  return [];
+   106→}
+   107→
+   108→function stringifyPayload(v: unknown): string {
+   109→  try {
+   110→    return JSON.stringify(v, null, 2);
+   111→  } catch {
+   112→    return String(v);
+   113→  }
+   114→}
+   115→
+   116→/* ------------------------------------------------------------------ */
+   117→/* Keys hook                                                           */
+   118→/* ------------------------------------------------------------------ */
+   119→
+   120→function useKeys() {
+   121→  const [keys, setKeys] = useState<KeyStatus[] | null>(null);
+   122→  const refresh = useCallback(() => {
+   123→    fetch("/api/keys")
+   124→      .then((r) => r.json())
+   125→      .then((d) => setKeys(d.keys ?? []))
+   126→      .catch(() => {});
+   127→  }, []);
+   128→  useEffect(() => {
+   129→    refresh();
+   130→  }, [refresh]);
+   131→  return { keys, refresh };
+   132→}
+   133→
+   134→function KeyCard({ status, icon }: { status: KeyStatus | undefined; icon: React.ReactNode }) {
+   135→  const configured = status?.configured;
+   136→  return (
+   137→    <div
+   138→      className={cn(
+   139→        "rounded-xl border p-4",
+   140→        configured ? "border-teal-400/30 bg-teal-400/5" : "border-white/10 bg-black/30"
+   141→      )}
+   142→    >
+   143→      <div className="flex items-center justify-between gap-2">
+   144→        <span className="flex items-center gap-2 text-sm font-semibold text-zinc-200">
+   145→          {icon}
+   146→          {status?.service === "plunder_riffle" ? "Plunder & Riffle MCP" : "Exa Search API"}
+   147→        </span>
+   148→        <span
+   149→          className={cn(
+   150→            "rounded border px-1.5 py-0.5 font-mono text-[9px] tracking-[0.14em] uppercase",
+   151→            configured ? "border-teal-400/40 text-teal-300" : "border-amber-400/40 text-amber-300"
+   152→          )}
+   153→        >
+   154→          {configured ? "connected" : "not set"}
+   155→        </span>
+   156→      </div>
+   157→      <p className="mt-2 font-mono text-xs text-zinc-500">
+   158→        {configured ? status?.masked : "paste a key below to unlock live calls"}
+   159→      </p>
+   160→      {configured && status?.source && (
+   161→        <p className="mt-1 font-mono text-[9px] uppercase tracking-widest text-zinc-600">
+   162→          source: {status.source}
+   163→          {status.setAt ? ` · set ${new Date(status.setAt).toLocaleDateString()}` : ""}
+   164→        </p>
+   165→      )}
+   166→    </div>
+   167→  );
+   168→}
+   169→
+   170→/* ================================================================== */
+   171→/* Main component                                                      */
+   172→/* ================================================================== */
+   173→
+   174→const STUDIO_TABS = ["creative", "multilang", "video", "audio", "setup"] as const;
+   175→
+   176→export default function PrStudio() {
+   177→  const [status, setStatus] = useState<StatusData | null>(null);
+   178→  const [tab, setTab] = useState<string>("creative");
+   179→  const { keys, refresh: refreshKeys } = useKeys();
+   180→
+   181→  /* The studio phone — the in-page delivery surface for engine assets. */
+   182→  const [phone, setPhone] = useState<PhoneContent | null>(null);
+   183→  const phoneRailRef = useRef<HTMLDivElement>(null);
+   184→  const [videoRequest, setVideoRequest] = useState<{ topic: string; nonce: number } | null>(null);
+   185→  const [creativeRequest, setCreativeRequest] = useState<{ input: string; nonce: number } | null>(null);
+   186→
+   187→  useEffect(() => {
+   188→    fetch("/api/status")
+   189→      .then((r) => r.json())
+   190→      .then((d: StatusData) => setStatus(d))
+   191→      .catch(() => {});
+   192→  }, []);
+   193→
+   194→  /* Deep-link channel: window.dispatchEvent(new CustomEvent("pr-studio:tab", { detail: "video" })) */
+   195→  useEffect(() => {
+   196→    function onTabRequest(e: Event) {
+   197→      const detail = (e as CustomEvent<string>).detail;
+   198→      if (typeof detail === "string" && (STUDIO_TABS as readonly string[]).includes(detail)) {
+   199→        setTab(detail);
+   200→      }
+   201→    }
+   202→    window.addEventListener("pr-studio:tab", onTabRequest);
+   203→    return () => window.removeEventListener("pr-studio:tab", onTabRequest);
+   204→  }, []);
+   205→
+   206→  /* Studio phone channel — any tab (or the engine console) can push an asset. */
+   207→  useEffect(() => {
+   208→    function onPhoneLoad(e: Event) {
+   209→      const detail = (e as CustomEvent<PhoneContent>).detail;
+   210→      if (!detail || typeof detail !== "object") return;
+   211→      setPhone(detail);
+   212→      // On narrow screens the phone lives below the tabs — bring it into view.
+   213→      if (window.innerWidth < 1280) {
+   214→        window.setTimeout(
+   215→          () => phoneRailRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }),
+   216→          150
+   217→        );
+   218→      }
+   219→    }
+   220→    window.addEventListener("studio-phone:load", onPhoneLoad);
+   221→    return () => window.removeEventListener("studio-phone:load", onPhoneLoad);
+   222→  }, []);
+   223→
+   224→  /* Quick-create commands from the Live Demo engine console. */
+   225→  useEffect(() => {
+   226→    function onQuickVideo(e: Event) {
+   227→      const detail = (e as CustomEvent<{ topic?: string }>).detail;
+   228→      setTab("video");
+   229→      if (detail?.topic) setVideoRequest({ topic: detail.topic, nonce: Date.now() });
+   230→    }
+   231→    function onQuickCreative(e: Event) {
+   232→      const detail = (e as CustomEvent<{ input?: string }>).detail;
+   233→      setTab("creative");
+   234→      if (detail?.input) setCreativeRequest({ input: detail.input, nonce: Date.now() });
+   235→    }
+   236→    window.addEventListener("pr-studio:quick-video", onQuickVideo);
+   237→    window.addEventListener("pr-studio:quick-creative", onQuickCreative);
+   238→    return () => {
+   239→      window.removeEventListener("pr-studio:quick-video", onQuickVideo);
+   240→      window.removeEventListener("pr-studio:quick-creative", onQuickCreative);
+   241→    };
+   242→  }, []);
+   243→
+   244→  const mcpLive = status?.mcp.connected ?? false;
+   245→
+   246→  return (
+   247→    <section id="pr-studio" className="relative py-20 sm:py-24">
+   248→      <div className="absolute inset-0 atmosphere-teal pointer-events-none" />
+   249→      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+   250→        {/* Header */}
+   251→        <div className="mx-auto max-w-3xl text-center">
+   252→          <div className="flex flex-wrap items-center justify-center gap-3">
+   253→            <span className="kicker">The P&amp;R Studio</span>
+   254→            <McpStatusPill />
+   255→            {status?.keys?.plunder_riffle?.configured ? (
+   256→              <span className="inline-flex items-center gap-1.5 rounded-full border border-teal-400/40 bg-teal-400/10 px-3 py-1 font-mono text-[10px] tracking-widest uppercase text-teal-300">
+   257→                <KeyRound className="h-3 w-3" /> BYOK active
+   258→              </span>
+   259→            ) : (
+   260→              <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/40 bg-amber-400/10 px-3 py-1 font-mono text-[10px] tracking-widest uppercase text-amber-300">
+   261→                <KeyRound className="h-3 w-3" /> BYOK: demo mode
+   262→              </span>
+   263→            )}
+   264→          </div>
+   265→          <h2 className="mt-4 text-3xl sm:text-4xl font-bold tracking-tight text-white">
+   266→            The multimedia studio,{" "}
+   267→            <span className="text-amber-glow">running on real MCP calls.</span>
+   268→          </h2>
+   269→          <p className="mt-4 text-zinc-400 leading-relaxed">
+   270→            Ad creatives, native multilanguage campaigns, a ~60s phone-demo
+   271→            video and a voiced take — all generated server-side through the
+   272→            Plunder &amp; Riffle MCP. Every result is the engine&apos;s actual output,
+   273→            with its temp-page preview link. If a call can&apos;t complete, you see
+   274→            the honest error — never a fake success message.
+   275→          </p>
+   276→        </div>
+   277→
+   278→        {/* Studio: tabs + results on the left, the beveled delivery phone on the right */}
+   279→        <div className="mx-auto mt-10 grid max-w-6xl gap-10 xl:grid-cols-[minmax(0,1fr)_340px] xl:items-start">
+   280→          <Tabs value={tab} onValueChange={setTab} className="w-full min-w-0">
+   281→            <TabsList className="mx-auto grid w-full max-w-3xl grid-cols-2 gap-1 rounded-xl border border-white/10 bg-black/50 p-1 sm:grid-cols-3 lg:grid-cols-5">
+   282→              {[
+   283→                { id: "creative", label: "Ad Creative", icon: ImageIcon },
+   284→                { id: "multilang", label: "Multilang", icon: Languages },
+   285→                { id: "video", label: "Video", icon: Clapperboard },
+   286→                { id: "audio", label: "Audio Take", icon: AudioLines },
+   287→                { id: "setup", label: "BYOK Setup", icon: KeyRound },
+   288→              ].map((t) => (
+   289→                <TabsTrigger
+   290→                  key={t.id}
+   291→                  value={t.id}
+   292→                  className="rounded-lg font-mono text-[10px] uppercase tracking-widest text-zinc-400 data-[state=active]:bg-amber-400/15 data-[state=active]:text-amber-200"
+   293→                >
+   294→                  <t.icon className="mr-1.5 h-3.5 w-3.5" />
+   295→                  {t.label}
+   296→                </TabsTrigger>
+   297→              ))}
+   298→            </TabsList>
+   299→
+   300→            <TabsContent value="creative" className="mt-6">
+   301→              <CreativeTab mcpLive={mcpLive} request={creativeRequest} />
+   302→            </TabsContent>
+   303→            <TabsContent value="multilang" className="mt-6">
+   304→              <MultilangTab mcpLive={mcpLive} />
+   305→            </TabsContent>
+   306→            <TabsContent value="video" className="mt-6">
+   307→              <VideoTab mcpLive={mcpLive} request={videoRequest} />
+   308→            </TabsContent>
+   309→            <TabsContent value="audio" className="mt-6">
+   310→              <AudioTab mcpLive={mcpLive} />
+   311→            </TabsContent>
+   312→            <TabsContent value="setup" className="mt-6">
+   313→              <SetupTab keys={keys} refreshKeys={refreshKeys} />
+   314→            </TabsContent>
+   315→          </Tabs>
+   316→
+   317→          {/* The delivery phone — engine assets play here, no click-away. */}
+   318→          <aside
+   319→            ref={phoneRailRef}
+   320→            className="panel noise-overlay relative rounded-2xl p-4 sm:p-5 xl:sticky xl:top-24"
+   321→            aria-label="Studio phone — in-page asset delivery"
+   322→          >
+   323→            <div className="mb-4 flex items-center justify-between gap-2">
+   324→              <span className="kicker">Studio phone</span>
+   325→              <span className="font-mono text-[9px] uppercase tracking-widest text-zinc-600">
+   326→                assets play here
+   327→              </span>
+   328→            </div>
+   329→            <PhonePlayer content={phone} />
+   330→            <p className="mt-4 text-[11px] leading-relaxed text-zinc-500">
+   331→              Finished videos render and play inside this phone — no clicking away to
+   332→              the engine. Creatives can be pushed here with{" "}
+   333→              <span className="font-mono text-[10px] text-teal-300">Load in phone</span>.
+   334→            </p>
+   335→          </aside>
+   336→        </div>
+   337→      </div>
+   338→    </section>
+   339→  );
+   340→}
+   341→
+   342→/* ================================================================== */
+   343→/* Tab 1 — Ad Creative (generate_ad_creative / shop)                   */
+   344→/* ================================================================== */
+   345→
+   346→function CreativeTab({
+   347→  mcpLive,
+   348→  request,
+   349→}: {
+   350→  mcpLive: boolean;
+   351→  request?: { input: string; nonce: number } | null;
+   352→}) {
+   353→  const [input, setInput] = useState("PanelView Plus 1000 HMI terminals just restocked");
+   354→  const [format, setFormat] = useState("carousel");
+   355→  const [kind, setKind] = useState<"creative" | "shop">("creative");
+   356→  const [loading, setLoading] = useState(false);
+   357→  const [result, setResult] = useState<Record<string, unknown> | null>(null);
+   358→  const [error, setError] = useState<string | null>(null);
+   359→  const [showRaw, setShowRaw] = useState(false);
+   360→
+   361→  async function generate(inputArg?: string) {
+   362→    const topic = (inputArg ?? input).trim();
+   363→    if (!topic) return;
+   364→    setLoading(true);
+   365→    setError(null);
+   366→    setResult(null);
+   367→    const { ok, data } = await postJson<Record<string, unknown>>("/api/mcp/creative", {
+   368→      input: topic,
+   369→      kind,
+   370→      format,
+   371→    });
+   372→    if (ok && data.mode === "live") setResult(data);
+   373→    else setError((data.error as string) || "The P&R MCP call failed — honest error, no fake success.");
+   374→    setLoading(false);
+   375→  }
+   376→
+   377→  /* Console command handoff — fill + fire. */
+   378→  const generateRef = useRef<(t?: string) => Promise<void>>(async () => {});
+   379→  useEffect(() => {
+   380→    generateRef.current = generate;
+   381→  });
+   382→  const creativeNonceRef = useRef<number | null>(null);
+   383→  useEffect(() => {
+   384→    if (!request || request.nonce === creativeNonceRef.current) return;
+   385→    creativeNonceRef.current = request.nonce;
+   386→    const topic = request.input;
+   387→    // Deferred one tick — setState directly inside an effect body causes
+   388→    // cascading renders (and the lint rule is right).
+   389→    const t = window.setTimeout(() => {
+   390→      setInput(topic);
+   391→      void generateRef.current(topic);
+   392→    }, 0);
+   393→    return () => window.clearTimeout(t);
+   394→  }, [request]);
+   395→
+   396→  const images = result ? collectImages(result) : [];
+   397→  const pageUrls = result ? collectPageUrls(result) : [];
+   398→
+   399→  return (
+   400→    <div className="panel rounded-2xl p-5 sm:p-6">
+   401→      <div className="flex flex-col gap-4 lg:flex-row">
+   402→        <div className="flex-1">
+   403→          <Input
+   404→            value={input}
+   405→            onChange={(e) => setInput(e.target.value)}
+   406→            placeholder="Product or brief…"
+   407→            className="h-11 border-white/15 bg-black/50 font-mono text-sm text-zinc-100 placeholder:text-zinc-600 focus-visible:ring-amber-400/50"
+   408→            aria-label="Creative brief"
+   409→          />
+   410→          <div className="mt-3 flex flex-wrap gap-1.5">
+   411→            {FORMATS.map((f) => (
+   412→              <button
+   413→                key={f.id}
+   414→                onClick={() => setFormat(f.id)}
+   415→                className={cn(
+   416→                  "rounded border px-2 py-1 font-mono text-[10px] uppercase tracking-wider transition-colors",
+   417→                  format === f.id
+   418→                    ? "border-amber-400/60 bg-amber-400/10 text-amber-200"
+   419→                    : "border-white/10 text-zinc-500 hover:border-white/25 hover:text-zinc-300"
+   420→                )}
+   421→              >
+   422→                {f.label}
+   423→              </button>
+   424→            ))}
+   425→          </div>
+   426→        </div>
+   427→        <div className="flex flex-col gap-2 lg:w-44">
+   428→          <Button
+   429→            onClick={generate}
+   430→            disabled={loading || !input.trim()}
+   431→            className="h-11 bg-teal-400 font-bold text-black hover:bg-teal-300"
+   432→          >
+   433→            {loading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <ImageIcon className="h-4 w-4" />}
+   434→            <span className="ml-2">Generate</span>
+   435→          </Button>
+   436→          <div className="flex rounded-lg border border-white/10 p-0.5">
+   437→            {(["creative", "shop"] as const).map((k) => (
+   438→              <button
+   439→                key={k}
+   440→                onClick={() => setKind(k)}
+   441→                className={cn(
+   442→                  "flex-1 rounded-md px-2 py-1.5 font-mono text-[9px] uppercase tracking-wider transition-colors",
+   443→                  kind === k ? "bg-white/10 text-zinc-100" : "text-zinc-500 hover:text-zinc-300"
+   444→                )}
+   445→                title={k === "shop" ? "shop tool — researched copy + creatives from a product link/description" : "generate_ad_creative — one creative from a brief"}
+   446→              >
+   447→                {k === "creative" ? "ad_creative" : "shop pack"}
+   448→              </button>
+   449→            ))}
+   450→          </div>
+   451→        </div>
+   452→      </div>
+   453→
+   454→      <p className="mt-3 font-mono text-[10px] text-zinc-600">
+   455→        tool: {kind === "shop" ? "shop" : "generate_ad_creative"} · returns the MCP&apos;s temp-page
+   456→        preview + PNG assets + post copy exactly as produced
+   457→        {!mcpLive && " · BYOK key not set yet (see BYOK Setup)"}
+   458→      </p>
+   459→
+   460→      {loading && (
+   461→        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+   462→          {[1, 2, 3].map((i) => (
+   463→            <Skeleton key={i} className="h-52 rounded-xl bg-white/5" />
+   464→          ))}
+   465→        </div>
+   466→      )}
+   467→
+   468→      {error && (
+   469→        <p className="mt-5 rounded-lg border border-red-400/30 bg-red-400/10 px-4 py-3 text-sm text-red-300">
+   470→          {error}
+   471→        </p>
+   472→      )}
+   473→
+   474→      {result && (
+   475→        <div className="mt-5 rounded-xl border border-teal-400/25 bg-teal-400/5 p-4">
+   476→          <div className="mb-3 flex flex-wrap items-center gap-2">
+   477→            <ShieldCheck className="h-4 w-4 text-teal-300" />
+   478→            <span className="text-sm font-semibold text-teal-200">P&amp;R MCP responded — real output</span>
+   479→            <span className="font-mono text-[9px] uppercase tracking-widest text-zinc-600">
+   480→              meme-engine · {new Date().toLocaleTimeString()}
+   481→            </span>
+   482→          </div>
+   483→          {images.length > 0 ? (
+   484→            <div className="grid gap-3 sm:grid-cols-3">
+   485→              {images.slice(0, 6).map((img, i) => (
+   486→                <div
+   487→                  key={i}
+   488→                  className="group relative overflow-hidden rounded-xl border border-white/10 bg-black/40"
+   489→                >
+   490→                  <a href={img.url} target="_blank" rel="noopener noreferrer">
+   491→                    <img
+   492→                      src={img.url}
+   493→                      alt={`P&R MCP generated creative ${i + 1}`}
+   494→                      className="h-52 w-full object-cover transition-transform duration-500 group-hover:scale-105"
+   495→                      loading="lazy"
+   496→                    />
+   497→                  </a>
+   498→                  <button
+   499→                    onClick={() =>
+   500→                      loadStudioPhone({
+   501→                        kind: "image",
+   502→                        src: img.url,
+   503→                        label: img.label ?? "P&R creative",
+   504→                      })
+   505→                    }
+   506→                    className="absolute bottom-2 right-2 rounded-lg border border-teal-400/50 bg-black/80 px-2.5 py-1 font-mono text-[9px] uppercase tracking-wider text-teal-200 backdrop-blur transition-colors hover:bg-black"
+   507→                    aria-label="Load this creative into the studio phone"
+   508→                  >
+   509→                    Load in phone
+   510→                  </button>
+   511→                </div>
+   512→              ))}
+   513→            </div>
+   514→          ) : (
+   515→            <p className="text-xs text-zinc-400">No PNG assets in this run — check the raw payload below.</p>
+   516→          )}
+   517→          {pageUrls.length > 0 && (
+   518→            <div className="mt-3 flex flex-wrap gap-2">
+   519→              {pageUrls.slice(0, 3).map((u, i) => (
+   520→                <a
+   521→                  key={i}
+   522→                  href={u}
+   523→                  target="_blank"
+   524→                  rel="noopener noreferrer"
+   525→                  className="inline-flex items-center gap-1.5 rounded-lg border border-amber-400/40 bg-amber-400/10 px-3 py-1.5 text-xs font-medium text-amber-200 hover:bg-amber-400/20"
+   526→                >
+   527→                  <ExternalLink className="h-3 w-3" /> Temp-page preview {pageUrls.length > 1 ? i + 1 : ""}
+   528→                </a>
+   529→              ))}
+   530→            </div>
+   531→          )}
+   532→          <button
+   533→            onClick={() => setShowRaw(!showRaw)}
+   534→            className="mt-3 inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-zinc-500 hover:text-zinc-300"
+   535→          >
+   536→            {showRaw ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+   537→            {showRaw ? "hide" : "show"} raw MCP payload
+   538→          </button>
+   539→          {showRaw && (
+   540→            <pre className="scroll-slim mt-2 max-h-64 overflow-y-auto whitespace-pre-wrap rounded-lg border border-white/10 bg-black/40 p-3 font-mono text-[11px] leading-relaxed text-zinc-400">
+   541→              {stringifyPayload(result)}
+   542→            </pre>
+   543→          )}
+   544→        </div>
+   545→      )}
+   546→    </div>
+   547→  );
+   548→}
+   549→
+   550→/* ================================================================== */
+   551→/* Tab 2 — Multilanguage (generate_multilanguage_ads)                  */
+   552→/* ================================================================== */
+   553→
+   554→function MultilangTab({ mcpLive }: { mcpLive: boolean }) {
+   555→  const [input, setInput] = useState("DO Supply: hard-to-find automation parts, shipped fast");
+   556→  const [format, setFormat] = useState("image");
+   557→  const [langs, setLangs] = useState<string[]>(["English", "Spanish", "German"]);
+   558→  const [loading, setLoading] = useState(false);
+   559→  const [result, setResult] = useState<Record<string, unknown> | null>(null);
+   560→  const [error, setError] = useState<string | null>(null);
+   561→  const [showRaw, setShowRaw] = useState(false);
+   562→
+   563→  function toggleLang(l: string) {
+   564→    setLangs((prev) =>
+   565→      prev.includes(l) ? prev.filter((x) => x !== l) : prev.length >= 6 ? prev : [...prev, l]
+   566→    );
+   567→  }
+   568→
+   569→  async function generate() {
+   570→    setLoading(true);
+   571→    setError(null);
+   572→    setResult(null);
+   573→    const { ok, data } = await postJson<Record<string, unknown>>("/api/mcp/multilang", {
+   574→      input,
+   575→      languages: langs,
+   576→      format,
+   577→    });
+   578→    if (ok && data.mode === "live") setResult(data);
+   579→    else setError((data.error as string) || "The multilanguage call failed.");
+   580→    setLoading(false);
+   581→  }
+   582→
+   583→  const images = result ? collectImages(result) : [];
+   584→  const pageUrls = result ? collectPageUrls(result) : [];
+   585→
+   586→  return (
+   587→    <div className="panel rounded-2xl p-5 sm:p-6">
+   588→      <Input
+   589→        value={input}
+   590→        onChange={(e) => setInput(e.target.value)}
+   591→        placeholder="Product or campaign brief…"
+   592→        className="h-11 border-white/15 bg-black/50 font-mono text-sm text-zinc-100 placeholder:text-zinc-600 focus-visible:ring-amber-400/50"
+   593→        aria-label="Multilanguage brief"
+   594→      />
+   595→
+   596→      <p className="kicker mb-2 mt-4">
+   597→        Languages — pick up to 6 (generated natively per language, not translated) · selected {langs.length}/6
+   598→      </p>
+   599→      <div className="flex flex-wrap gap-1.5">
+   600→        {LANGUAGES.map((l) => (
+   601→          <button
+   602→            key={l}
+   603→            onClick={() => toggleLang(l)}
+   604→            className={cn(
+   605→              "rounded border px-2 py-1 font-mono text-[10px] transition-colors",
+   606→              langs.includes(l)
+   607→                ? "border-teal-400/60 bg-teal-400/10 text-teal-200"
+   608→                : "border-white/10 text-zinc-500 hover:border-white/25 hover:text-zinc-300"
+   609→            )}
+   610→          >
+   611→            {l}
+   612→          </button>
+   613→        ))}
+   614→      </div>
+   615→
+   616→      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+   617→        <div className="flex flex-wrap gap-1.5">
+   618→          {FORMATS.map((f) => (
+   619→            <button
+   620→              key={f.id}
+   621→              onClick={() => setFormat(f.id)}
+   622→              className={cn(
+   623→                "rounded border px-2 py-1 font-mono text-[10px] uppercase tracking-wider transition-colors",
+   624→                format === f.id
+   625→                  ? "border-amber-400/60 bg-amber-400/10 text-amber-200"
+   626→                  : "border-white/10 text-zinc-500 hover:border-white/25 hover:text-zinc-300"
+   627→              )}
+   628→            >
+   629→              {f.label}
+   630→            </button>
+   631→          ))}
+   632→        </div>
+   633→        <Button
+   634→          onClick={generate}
+   635→          disabled={loading || langs.length === 0 || !input.trim()}
+   636→          className="h-11 bg-teal-400 font-bold text-black hover:bg-teal-300"
+   637→        >
+   638→          {loading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Languages className="h-4 w-4" />}
+   639→          <span className="ml-2">Generate {langs.length} Languages</span>
+   640→        </Button>
+   641→      </div>
+   642→
+   643→      <p className="mt-3 font-mono text-[10px] text-zinc-600">
+   644→        tool: generate_multilanguage_ads · one result per language, failures reported per
+   645→        language{!mcpLive && " · BYOK key not set yet (see BYOK Setup)"}
+   646→      </p>
+   647→
+   648→      {loading && (
+   649→        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+   650→          {langs.map((l) => (
+   651→            <div key={l} className="space-y-2">
+   652→              <Skeleton className="h-40 rounded-xl bg-white/5" />
+   653→              <p className="text-center font-mono text-[10px] text-zinc-500">{l} · rendering…</p>
+   654→            </div>
+   655→          ))}
+   656→        </div>
+   657→      )}
+   658→
+   659→      {error && (
+   660→        <p className="mt-5 rounded-lg border border-red-400/30 bg-red-400/10 px-4 py-3 text-sm text-red-300">
+   661→          {error}
+   662→        </p>
+   663→      )}
+   664→
+   665→      {result && (
+   666→        <div className="mt-5 rounded-xl border border-teal-400/25 bg-teal-400/5 p-4">
+   667→          <div className="mb-3 flex flex-wrap items-center gap-2">
+   668→            <ShieldCheck className="h-4 w-4 text-teal-300" />
+   669→            <span className="text-sm font-semibold text-teal-200">
+   670→              Multilanguage batch returned — {langs.join(", ")}
+   671→            </span>
+   672→          </div>
+   673→          {images.length > 0 ? (
+   674→            <div className="grid gap-3 sm:grid-cols-3">
+   675→              {images.slice(0, 12).map((img, i) => (
+   676→                <div
+   677→                  key={i}
+   678→                  className="group relative overflow-hidden rounded-xl border border-white/10 bg-black/40"
+   679→                >
+   680→                  <a href={img.url} target="_blank" rel="noopener noreferrer">
+   681→                    <img
+   682→                      src={img.url}
+   683→                      alt={`P&R MCP multilanguage creative ${i + 1}${img.label ? ` — ${img.label}` : ""}`}
+   684→                      className="h-52 w-full object-cover transition-transform duration-500 group-hover:scale-105"
+   685→                      loading="lazy"
+   686→                    />
+   687→                  </a>
+   688→                  {img.label && (
+   689→                    <span className="absolute bottom-2 left-2 rounded bg-black/70 px-1.5 py-0.5 font-mono text-[9px] uppercase text-zinc-200">
+   690→                      {img.label}
+   691→                    </span>
+   692→                  )}
+   693→                  <button
+   694→                    onClick={() =>
+   695→                      loadStudioPhone({
+   696→                        kind: "image",
+   697→                        src: img.url,
+   698→                        label: img.label ?? "P&R multilang creative",
+   699→                      })
+   700→                    }
+   701→                    className="absolute bottom-2 right-2 rounded-lg border border-teal-400/50 bg-black/80 px-2.5 py-1 font-mono text-[9px] uppercase tracking-wider text-teal-200 backdrop-blur transition-colors hover:bg-black"
+   702→                    aria-label="Load this creative into the studio phone"
+   703→                  >
+   704→                    Load in phone
+   705→                  </button>
+   706→                </div>
+   707→              ))}
+   708→            </div>
+   709→          ) : (
+   710→            <p className="text-xs text-zinc-400">
+   711→              No PNG assets detected in the payload — open the raw payload or preview links.
+   712→            </p>
+   713→          )}
+   714→          {pageUrls.length > 0 && (
+   715→            <div className="mt-3 flex flex-wrap gap-2">
+   716→              {pageUrls.slice(0, 6).map((u, i) => (
+   717→                <a
+   718→                  key={i}
+   719→                  href={u}
+   720→                  target="_blank"
+   721→                  rel="noopener noreferrer"
+   722→                  className="inline-flex items-center gap-1.5 rounded-lg border border-amber-400/40 bg-amber-400/10 px-3 py-1.5 text-xs font-medium text-amber-200 hover:bg-amber-400/20"
+   723→                >
+   724→                  <ExternalLink className="h-3 w-3" /> Preview {i + 1}
+   725→                </a>
+   726→              ))}
+   727→            </div>
+   728→          )}
+   729→          <button
+   730→            onClick={() => setShowRaw(!showRaw)}
+   731→            className="mt-3 inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-zinc-500 hover:text-zinc-300"
+   732→          >
+   733→            {showRaw ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+   734→            {showRaw ? "hide" : "show"} raw MCP payload
+   735→          </button>
+   736→          {showRaw && (
+   737→            <pre className="scroll-slim mt-2 max-h-64 overflow-y-auto whitespace-pre-wrap rounded-lg border border-white/10 bg-black/40 p-3 font-mono text-[11px] leading-relaxed text-zinc-400">
+   738→              {stringifyPayload(result)}
+   739→            </pre>
+   740→          )}
+   741→        </div>
+   742→      )}
+   743→    </div>
+   744→  );
+   745→}
+   746→
+   747→/* ================================================================== */
+   748→/* Tab 3 — Video Demo (create_phone_demo + get_job_status polling)     */
+   749→/* ================================================================== */
+   750→
+   751→type VideoState = {
+   752→  jobId: string | null;
+   753→  status: string | null;
+   754→  pageUrl: string | null;
+   755→  error: string | null;
+   756→};
+   757→
+   758→type Mp4State = {
+   759→  jobId: string | null;
+   760→  status: string | null;
+   761→  mp4Url: string | null;
+   762→  error: string | null;
+   763→};
+   764→
+   765→function VideoTab({
+   766→  mcpLive,
+   767→  request,
+   768→}: {
+   769→  mcpLive: boolean;
+   770→  request?: { topic: string; nonce: number } | null;
+   771→}) {
+   772→  const [topic, setTopic] = useState(
+   773→    "Why maintenance teams wait weeks for hard-to-find automation parts — and how DO Supply fixes it"
+   774→  );
+   775→  const [shape, setShape] = useState<"mixed" | "ranked">("mixed");
+   776→  const [starting, setStarting] = useState(false);
+   777→  const [video, setVideo] = useState<VideoState | null>(null);
+   778→  const [mp4, setMp4] = useState<Mp4State | null>(null);
+   779→  const [mp4Busy, setMp4Busy] = useState(false);
+   780→  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+   781→  const mp4PollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+   782→
+   783→  const stopPolling = useCallback(() => {
+   784→    if (pollRef.current) {
+   785→      clearInterval(pollRef.current);
+   786→      pollRef.current = null;
+   787→    }
+   788→  }, []);
+   789→
+   790→  const stopMp4Polling = useCallback(() => {
+   791→    if (mp4PollRef.current) {
+   792→      clearInterval(mp4PollRef.current);
+   793→      mp4PollRef.current = null;
+   794→    }
+   795→  }, []);
+   796→
+   797→  useEffect(
+   798→    () => () => {
+   799→      stopPolling();
+   800→      stopMp4Polling();
+   801→    },
+   802→    [stopPolling, stopMp4Polling]
+   803→  );
+   804→
+   805→  function startPolling(jobId: string) {
+   806→    stopPolling();
+   807→    pollRef.current = setInterval(async () => {
+   808→      const { ok, data } = await postJson<{
+   809→        status?: string;
+   810→        pageUrl?: string | null;
+   811→        error?: string | null;
+   812→      }>("/api/mcp/job", { kind: "sitdown", jobId });
+   813→      if (!ok) return; // transient — keep polling
+   814→      setVideo((prev) =>
+   815→        prev
+   816→          ? {
+   817→              ...prev,
+   818→              status: data.status ?? prev.status,
+   819→              pageUrl: data.pageUrl ?? prev.pageUrl,
+   820→              error: data.error ?? prev.error,
+   821→            }
+   822→          : prev
+   823→      );
+   824→      if (data.status === "done" || data.status === "failed") stopPolling();
+   825→    }, 15_000);
+   826→  }
+   827→
+   828→  function startMp4Polling(jobId: string) {
+   829→    stopMp4Polling();
+   830→    mp4PollRef.current = setInterval(async () => {
+   831→      const { ok, data } = await postJson<{
+   832→        status?: string;
+   833→        mp4Url?: string | null;
+   834→        error?: string | null;
+   835→      }>("/api/mcp/job", { kind: "mp4", jobId });
+   836→      if (!ok) return; // transient — keep polling
+   837→      setMp4((prev) =>
+   838→        prev
+   839→          ? {
+   840→              ...prev,
+   841→              status: data.status ?? prev.status,
+   842→              mp4Url: data.mp4Url ?? prev.mp4Url,
+   843→              error: data.error ?? prev.error,
+   844→            }
+   845→          : prev
+   846→      );
+   847→      if (data.status === "done" || data.status === "failed") stopMp4Polling();
+   848→    }, 15_000);
+   849→  }
+   850→
+   851→  async function start(topicArg?: string) {
+   852→    const t = (topicArg ?? topic).trim();
+   853→    if (!t) return;
+   854→    setStarting(true);
+   855→    setMp4(null);
+   856→    setVideo({ jobId: null, status: "starting", pageUrl: null, error: null });
+   857→    const { ok, data } = await postJson<{
+   858→      mode?: string;
+   859→      jobId?: string | null;
+   860→      status?: string;
+   861→      pageUrl?: string | null;
+   862→      error?: string;
+   863→      code?: string;
+   864→    }>("/api/mcp/video", { topic: t, shape });
+   865→    if (ok && data.mode === "live") {
+   866→      const st: VideoState = {
+   867→        jobId: data.jobId ?? null,
+   868→        status: data.status ?? "queued",
+   869→        pageUrl: data.pageUrl ?? null,
+   870→        error: null,
+   871→      };
+   872→      setVideo(st);
+   873→      if (st.jobId) startPolling(st.jobId);
+   874→    } else {
+   875→      setVideo({
+   876→        jobId: null,
+   877→        status: null,
+   878→        pageUrl: null,
+   879→        error: (data.error as string) || "create_phone_demo failed.",
+   880→      });
+   881→    }
+   882→    setStarting(false);
+   883→  }
+   884→
+   885→  /* Console command handoff — fill + fire. */
+   886→  const startRef = useRef<(t?: string) => Promise<void>>(async () => {});
+   887→  useEffect(() => {
+   888→    startRef.current = start;
+   889→  });
+   890→  const videoNonceRef = useRef<number | null>(null);
+   891→  useEffect(() => {
+   892→    if (!request || request.nonce === videoNonceRef.current) return;
+   893→    videoNonceRef.current = request.nonce;
+   894→    const topic = request.topic;
+   895→    // Deferred one tick — same cascading-render reasoning as CreativeTab.
+   896→    const t = window.setTimeout(() => {
+   897→      setTopic(topic);
+   898→      void startRef.current(topic);
+   899→    }, 0);
+   900→    return () => window.clearTimeout(t);
+   901→  }, [request]);
+   902→
+   903→  /** Human approval step — clicking IS the approval request_mp4 requires. */
+   904→  async function requestMp4() {
+   905→    if (!video?.pageUrl) return;
+   906→    setMp4Busy(true);
+   907→    setMp4({ jobId: null, status: "starting", mp4Url: null, error: null });
+   908→    const { ok, data } = await postJson<{
+   909→      mode?: string;
+   910→      jobId?: string | null;
+   911→      status?: string;
+   912→      mp4Url?: string | null;
+   913→      error?: string;
+   914→      code?: string;
+   915→    }>("/api/mcp/mp4", { pageUrl: video.pageUrl });
+   916→    if (ok && data.mode === "live") {
+   917→      const st: Mp4State = {
+   918→        jobId: data.jobId ?? null,
+   919→        status: data.status ?? "queued",
+   920→        mp4Url: data.mp4Url ?? null,
+   921→        error: null,
+   922→      };
+   923→      setMp4(st);
+   924→      if (st.jobId && !st.mp4Url) startMp4Polling(st.jobId);
+   925→    } else {
+   926→      setMp4({
+   927→        jobId: null,
+   928→        status: null,
+   929→        mp4Url: null,
+   930→        error: (data.error as string) || "request_mp4 failed.",
+   931→      });
+   932→    }
+   933→    setMp4Busy(false);
+   934→  }
+   935→
+   936→  const done = video?.status === "done";
+   937→  const failed = video?.status === "failed";
+   938→  const mp4Done = mp4?.status === "done" || !!mp4?.mp4Url;
+   939→  const mp4Failed = mp4?.status === "failed";
+   940→
+   941→  /* Auto-delivery: the studio phone plays the video the moment the MP4
+   942→     exists, and shows a one-approval-away card while only the preview
+   943→     page exists. No click-away required at any point. */
+   944→  const lastPhoneRef = useRef<string | null>(null);
+   945→  useEffect(() => {
+   946→    const mp4Url = mp4?.mp4Url;
+   947→    if (mp4Url && lastPhoneRef.current !== mp4Url) {
+   948→      lastPhoneRef.current = mp4Url;
+   949→      loadStudioPhone({
+   950→        kind: "video",
+   951→        src: mp4Url,
+   952→        label: "P&R video demo · rendered MP4",
+   953→      });
+   954→      return;
+   955→    }
+   956→    if (done && video?.pageUrl && !mp4Url && lastPhoneRef.current !== `preview:${video.pageUrl}`) {
+   957→      lastPhoneRef.current = `preview:${video.pageUrl}`;
+   958→      loadStudioPhone({
+   959→        kind: "placeholder",
+   960→        tone: "idle",
+   961→        title: "Preview ready — one approval away",
+   962→        body: "The engine's preview is a captioned page. Tap Approve & render MP4 and the finished video plays right here.",
+   963→      });
+   964→    }
+   965→  }, [mp4?.mp4Url, done, video?.pageUrl]);
+   966→
+   967→  return (
+   968→    <div className="panel rounded-2xl p-5 sm:p-6">
+   969→      <div className="flex flex-col gap-3 sm:flex-row">
+   970→        <Input
+   971→          value={topic}
+   972→          onChange={(e) => setTopic(e.target.value)}
+   973→          placeholder="What should the ~60s video be about?"
+   974→          className="h-11 flex-1 border-white/15 bg-black/50 font-mono text-sm text-zinc-100 placeholder:text-zinc-600 focus-visible:ring-amber-400/50"
+   975→          aria-label="Video demo topic"
+   976→        />
+   977→        <Button
+   978→          onClick={() => start()}
+   979→          disabled={starting || !topic.trim() || (video?.jobId != null && !done && !failed)}
+   980→          className="h-11 bg-teal-400 font-bold text-black hover:bg-teal-300"
+   981→        >
+   982→          {starting ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Clapperboard className="h-4 w-4" />}
+   983→          <span className="ml-2">Start Video Demo</span>
+   984→        </Button>
+   985→      </div>
+   986→
+   987→      <div className="mt-3 flex flex-wrap items-center gap-2">
+   988→        <span className="font-mono text-[10px] uppercase tracking-widest text-zinc-600">cut:</span>
+   989→        {(["mixed", "ranked"] as const).map((s) => (
+   990→          <button
+   991→            key={s}
+   992→            onClick={() => setShape(s)}
+   993→            className={cn(
+   994→              "rounded border px-2 py-1 font-mono text-[10px] uppercase tracking-wider transition-colors",
+   995→              shape === s
+   996→                ? "border-amber-400/60 bg-amber-400/10 text-amber-200"
+   997→                : "border-white/10 text-zinc-500 hover:border-white/25 hover:text-zinc-300"
+   998→            )}
+   999→            title={
+  1000→              s === "mixed"
+  1001→                ? "memes, a ranked list or a carousel land on the host's phone"
+  1002→                : "a ranked list, read out by the host"
+  1003→            }
+  1004→          >
+  1005→            {s}
+  1006→          </button>
+  1007→        ))}
+  1008→      </div>
+  1009→
+  1010→      <p className="mt-3 font-mono text-[10px] text-zinc-600">
+  1011→        tool: create_phone_demo → get_job_status (kind sitdown) polled every 15s ·
+  1012→        the engine returns a captioned preview page; the MP4 renders only after
+  1013→        you approve it{!mcpLive && " · BYOK key not set yet (see BYOK Setup)"}
+  1014→      </p>
+  1015→
+  1016→      {video && (
+  1017→        <div
+  1018→          className={cn(
+  1019→            "mt-5 rounded-xl border p-4",
+  1020→            failed ? "border-red-400/30 bg-red-400/5" : done ? "border-teal-400/25 bg-teal-400/5" : "border-white/10 bg-black/30"
+  1021→          )}
+  1022→        >
+  1023→          {video.error ? (
+  1024→            <p className="text-sm text-red-300">{video.error}</p>
+  1025→          ) : (
+  1026→            <>
+  1027→              <div className="flex flex-wrap items-center gap-2">
+  1028→                <span
+  1029→                  className={cn(
+  1030→                    "h-2 w-2 rounded-full",
+  1031→                    done ? "bg-teal-400" : failed ? "bg-red-400" : "bg-amber-400 amber-dot"
+  1032→                  )}
+  1033→                />
+  1034→                <span className="font-mono text-xs uppercase tracking-widest text-zinc-300">
+  1035→                  video job: {video.status ?? "unknown"}
+  1036→                </span>
+  1037→                {video.jobId && (
+  1038→                  <span className="font-mono text-[10px] text-zinc-600">jobId: {video.jobId}</span>
+  1039→                )}
+  1040→              </div>
+  1041→              {(video.status === "rendering" || video.status === "queued" || video.status === "starting") && (
+  1042→                <p className="mt-2 text-xs text-amber-200/80">
+  1043→                  The engine is writing, voicing and shooting the ~60s phone demo — polling
+  1044→                  every 15s. Usually done in 1–2 minutes; the link below goes live as soon as
+  1045→                  the preview page exists.
+  1046→                </p>
+  1047→              )}
+  1048→
+  1049→              {/* THE video link — the point of this tab */}
+  1050→              {video.pageUrl && (
+  1051→                <div className="mt-4">
+  1052→                  <a
+  1053→                    href={video.pageUrl}
+  1054→                    target="_blank"
+  1055→                    rel="noopener noreferrer"
+  1056→                    className="inline-flex items-center gap-2 rounded-xl border border-amber-400/50 bg-amber-400/10 px-5 py-3 text-sm font-semibold text-amber-200 transition-colors hover:bg-amber-400/20 sm:text-base"
+  1057→                  >
+  1058→                    <Play className="h-4 w-4 fill-current" />
+  1059→                    {done ? "Watch the video — finished preview" : "Watch the video — live preview"}
+  1060→                    <ExternalLink className="h-3.5 w-3.5 opacity-70" />
+  1061→                  </a>
+  1062→                  <p className="mt-1.5 font-mono text-[10px] text-zinc-600">
+  1063→                    opens the engine&apos;s captioned preview page in a new tab
+  1064→                  </p>
+  1065→                </div>
+  1066→              )}
+  1067→
+  1068→              {done && video.pageUrl && (
+  1069→                <div className="mt-4 rounded-lg border border-white/10 bg-black/30 p-3.5">
+  1070→                  <p className="text-xs leading-relaxed text-zinc-400">
+  1071→                    Happy with the preview? Approving it unlocks an MP4 render — the
+  1072→                    engine&apos;s one explicit human-approval step. We never fire it
+  1073→                    automatically.
+  1074→                  </p>
+  1075→                  <div className="mt-2.5 flex flex-wrap items-center gap-2.5">
+  1076→                    <Button
+  1077→                      onClick={requestMp4}
+  1078→                      disabled={mp4Busy || (mp4 != null && !mp4Done && !mp4Failed)}
+  1079→                      className="h-9 bg-teal-400 font-bold text-black hover:bg-teal-300"
+  1080→                    >
+  1081→                      {mp4Busy ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Film className="h-3.5 w-3.5" />}
+  1082→                      <span className="ml-1.5">Approve &amp; render MP4</span>
+  1083→                    </Button>
+  1084→                    {mp4 && !mp4.error && (
+  1085→                      <span className="font-mono text-[10px] uppercase tracking-widest text-zinc-500">
+  1086→                        mp4 job: {mp4.status ?? "unknown"}
+  1087→                        {mp4.jobId ? ` · ${mp4.jobId}` : ""}
+  1088→                      </span>
+  1089→                    )}
+  1090→                  </div>
+  1091→                  {mp4?.error && <p className="mt-2 text-xs text-red-300">{mp4.error}</p>}
+  1092→                  {mp4?.status === "rendering" && (
+  1093→                    <p className="mt-2 text-xs text-amber-200/80">
+  1094→                      Rendering the MP4 — usually 1–3 minutes; polling every 15s.
+  1095→                    </p>
+  1096→                  )}
+  1097→                  {mp4Done && mp4?.mp4Url && (
+  1098→                    <a
+  1099→                      href={mp4.mp4Url}
+  1100→                      target="_blank"
+  1101→                      rel="noopener noreferrer"
+  1102→                      className="mt-3 inline-flex items-center gap-2 rounded-lg border border-teal-400/40 bg-teal-400/10 px-4 py-2.5 text-sm font-semibold text-teal-200 transition-colors hover:bg-teal-400/20"
+  1103→                    >
+  1104→                      <Film className="h-4 w-4" /> Open the rendered MP4
+  1105→                      <ExternalLink className="h-3.5 w-3.5 opacity-70" />
+  1106→                    </a>
+  1107→                  )}
+  1108→                </div>
+  1109→              )}
+  1110→            </>
+  1111→          )}
+  1112→        </div>
+  1113→      )}
+  1114→    </div>
+  1115→  );
+  1116→}
+  1117→
+  1118→/* ================================================================== */
+  1119→/* Tab 4 — Audio Take (create_one_minute + get_job_status polling)     */
+  1120→/* ================================================================== */
+  1121→
+  1122→type AudioState = {
+  1123→  jobId: string | null;
+  1124→  status: string | null;
+  1125→  pageUrl: string | null;
+  1126→  mp4Url: string | null;
+  1127→  error: string | null;
+  1128→};
+  1129→
+  1130→function AudioTab({ mcpLive }: { mcpLive: boolean }) {
+  1131→  const [topic, setTopic] = useState("Why downtime waits are the real cost of legacy automation parts");
+  1132→  const [starting, setStarting] = useState(false);
+  1133→  const [audio, setAudio] = useState<AudioState | null>(null);
+  1134→  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  1135→
+  1136→  const stopPolling = useCallback(() => {
+  1137→    if (pollRef.current) {
+  1138→      clearInterval(pollRef.current);
+  1139→      pollRef.current = null;
+  1140→    }
+  1141→  }, []);
+  1142→
+  1143→  useEffect(() => stopPolling, [stopPolling]);
+  1144→
+  1145→  async function start() {
+  1146→    setStarting(true);
+  1147→    setAudio({ jobId: null, status: "starting", pageUrl: null, mp4Url: null, error: null });
+  1148→    const { ok, data } = await postJson<{
+  1149→      mode?: string;
+  1150→      jobId?: string | null;
+  1151→      status?: string;
+  1152→      pageUrl?: string | null;
+  1153→      error?: string;
+  1154→      code?: string;
+  1155→    }>("/api/mcp/audio", { topic });
+  1156→    if (ok && data.mode === "live") {
+  1157→      const st: AudioState = {
+  1158→        jobId: data.jobId ?? null,
+  1159→        status: data.status ?? "queued",
+  1160→        pageUrl: data.pageUrl ?? null,
+  1161→        mp4Url: null,
+  1162→        error: null,
+  1163→      };
+  1164→      setAudio(st);
+  1165→      if (st.jobId) startPolling(st.jobId);
+  1166→    } else {
+  1167→      setAudio({
+  1168→        jobId: null,
+  1169→        status: null,
+  1170→        pageUrl: null,
+  1171→        mp4Url: null,
+  1172→        error: (data.error as string) || "create_one_minute failed.",
+  1173→      });
+  1174→    }
+  1175→    setStarting(false);
+  1176→  }
+  1177→
+  1178→  function startPolling(jobId: string) {
+  1179→    stopPolling();
+  1180→    pollRef.current = setInterval(async () => {
+  1181→      const { ok, data } = await postJson<{
+  1182→        status?: string;
+  1183→        pageUrl?: string | null;
+  1184→        mp4Url?: string | null;
+  1185→        error?: string | null;
+  1186→      }>("/api/mcp/job", { kind: "one_minute", jobId });
+  1187→      if (!ok) return; // transient — keep polling
+  1188→      setAudio((prev) =>
+  1189→        prev
+  1190→          ? {
+  1191→              ...prev,
+  1192→              status: data.status ?? prev.status,
+  1193→              pageUrl: data.pageUrl ?? prev.pageUrl,
+  1194→              mp4Url: data.mp4Url ?? prev.mp4Url,
+  1195→              error: data.error ?? prev.error,
+  1196→            }
+  1197→          : prev
+  1198→      );
+  1199→      if (data.status === "done" || data.status === "failed") stopPolling();
+  1200→    }, 15_000);
+  1201→  }
+  1202→
+  1203→  const done = audio?.status === "done";
+  1204→  const failed = audio?.status === "failed";
+  1205→
+  1206→  /* Auto-delivery: a rendered 60s take plays in the studio phone. */
+  1207→  const lastPhoneRef = useRef<string | null>(null);
+  1208→  useEffect(() => {
+  1209→    const mp4Url = audio?.mp4Url;
+  1210→    if (mp4Url && lastPhoneRef.current !== mp4Url) {
+  1211→      lastPhoneRef.current = mp4Url;
+  1212→      loadStudioPhone({ kind: "video", src: mp4Url, label: "P&R 60s take · rendered MP4" });
+  1213→    }
+  1214→  }, [audio?.mp4Url]);
+  1215→
+  1216→  return (
+  1217→    <div className="panel rounded-2xl p-5 sm:p-6">
+  1218→      <div className="flex flex-col gap-3 sm:flex-row">
+  1219→        <Input
+  1220→          value={topic}
+  1221→          onChange={(e) => setTopic(e.target.value)}
+  1222→          placeholder="Topic for the ~60s voiced take…"
+  1223→          className="h-11 flex-1 border-white/15 bg-black/50 font-mono text-sm text-zinc-100 placeholder:text-zinc-600 focus-visible:ring-amber-400/50"
+  1224→          aria-label="Audio take topic"
+  1225→        />
+  1226→        <Button
+  1227→          onClick={start}
+  1228→          disabled={starting || !topic.trim() || (audio?.jobId != null && !done && !failed)}
+  1229→          className="h-11 bg-teal-400 font-bold text-black hover:bg-teal-300"
+  1230→        >
+  1231→          {starting ? <RefreshCw className="h-4 w-4 animate-spin" /> : <AudioLines className="h-4 w-4" />}
+  1232→          <span className="ml-2">Start ~60s Take</span>
+  1233→        </Button>
+  1234→      </div>
+  1235→
+  1236→      <p className="mt-3 font-mono text-[10px] text-zinc-600">
+  1237→        tool: create_one_minute → get_job_status polled every 15s · the engine returns a
+  1238→        captioned page preview; an MP4 is a separate approval-gated step we never
+  1239→        auto-trigger{!mcpLive && " · BYOK key not set yet (see BYOK Setup)"}
+  1240→      </p>
+  1241→
+  1242→      {audio && (
+  1243→        <div
+  1244→          className={cn(
+  1245→            "mt-5 rounded-xl border p-4",
+  1246→            failed ? "border-red-400/30 bg-red-400/5" : done ? "border-teal-400/25 bg-teal-400/5" : "border-white/10 bg-black/30"
+  1247→          )}
+  1248→        >
+  1249→          {audio.error ? (
+  1250→            <p className="text-sm text-red-300">{audio.error}</p>
+  1251→          ) : (
+  1252→            <>
+  1253→              <div className="flex flex-wrap items-center gap-2">
+  1254→                <span
+  1255→                  className={cn(
+  1256→                    "h-2 w-2 rounded-full",
+  1257→                    done ? "bg-teal-400" : failed ? "bg-red-400" : "bg-amber-400 amber-dot"
+  1258→                  )}
+  1259→                />
+  1260→                <span className="font-mono text-xs uppercase tracking-widest text-zinc-300">
+  1261→                  job status: {audio.status ?? "unknown"}
+  1262→                </span>
+  1263→                {audio.jobId && (
+  1264→                  <span className="font-mono text-[10px] text-zinc-600">jobId: {audio.jobId}</span>
+  1265→                )}
+  1266→              </div>
+  1267→              {(audio.status === "rendering" || audio.status === "queued" || audio.status === "starting") && (
+  1268→                <p className="mt-2 text-xs text-amber-200/80">
+  1269→                  The engine is writing and voicing the take — polling every 15s. This can take
+  1270→                  a few minutes; the page keeps polling until done or failed.
+  1271→                </p>
+  1272→              )}
+  1273→              {audio.pageUrl && (
+  1274→                <a
+  1275→                  href={audio.pageUrl}
+  1276→                  target="_blank"
+  1277→                  rel="noopener noreferrer"
+  1278→                  className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-amber-400/40 bg-amber-400/10 px-3.5 py-2 text-sm font-medium text-amber-200 hover:bg-amber-400/20"
+  1279→                >
+  1280→                  <ExternalLink className="h-3.5 w-3.5" />
+  1281→                  {done ? "Open the finished captioned page" : "Open the in-progress preview page"}
+  1282→                </a>
+  1283→              )}
+  1284→              {audio.mp4Url && (
+  1285→                <a
+  1286→                  href={audio.mp4Url}
+  1287→                  target="_blank"
+  1288→                  rel="noopener noreferrer"
+  1289→                  className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-teal-400/40 bg-teal-400/10 px-3.5 py-2 text-sm font-medium text-teal-200 hover:bg-teal-400/20"
+  1290→                >
+  1291→                  <ExternalLink className="h-3.5 w-3.5" /> Rendered MP4 (as returned by the engine)
+  1292→                </a>
+  1293→              )}
+  1294→            </>
+  1295→          )}
+  1296→        </div>
+  1297→      )}
+  1298→    </div>
+  1299→  );
+  1300→}
+  1301→
+  1302→/* ================================================================== */
+  1303→/* Tab 5 — BYOK Setup                                                  */
+  1304→/* ================================================================== */
+  1305→
+  1306→function SetupTab({
+  1307→  keys,
+  1308→  refreshKeys,
+  1309→}: {
+  1310→  keys: KeyStatus[] | null;
+  1311→  refreshKeys: () => void;
+  1312→}) {
+  1313→  const [passcode, setPasscode] = useState("");
+  1314→  const [prKey, setPrKey] = useState("");
+  1315→  const [exaKey, setExaKey] = useState("");
+  1316→  const [showKeys, setShowKeys] = useState(false);
+  1317→  const [busy, setBusy] = useState(false);
+  1318→  const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+  1319→
+  1320→  const prStatus = keys?.find((k) => k.service === "plunder_riffle");
+  1321→  const exaStatus = keys?.find((k) => k.service === "exa");
+  1322→
+  1323→  async function save(which: "plunder_riffle" | "exa") {
+  1324→    setBusy(true);
+  1325→    setMsg(null);
+  1326→    const key = which === "plunder_riffle" ? prKey.trim() : exaKey.trim();
+  1327→    const { ok, data } = await postJson<{
+  1328→      saved?: Record<string, { saved: boolean; probe?: string; account?: string }>;
+  1329→      error?: string;
+  1330→    }>("/api/keys", {
+  1331→      passcode,
+  1332→      keys: which === "plunder_riffle" ? { plunder_riffle: key } : { exa: key },
+  1333→    });
+  1334→    if (ok) {
+  1335→      const saved = data.saved?.[which];
+  1336→      const account = saved?.account ? ` Account: ${saved.account}` : "";
+  1337→      setMsg({
+  1338→        kind: "ok",
+  1339→        text:
+  1340→          which === "plunder_riffle"
+  1341→            ? `P&R key saved and verified against bot.plunderandriffle.com.${account} Live multimedia calls are now enabled.`
+  1342→            : `Exa key saved (${saved?.probe ?? "saved"}). Research now runs through api.exa.ai.`,
+  1343→      });
+  1344→      if (which === "plunder_riffle") setPrKey("");
+  1345→      else setExaKey("");
+  1346→      refreshKeys();
+  1347→      fetch("/api/status").catch(() => {});
+  1348→    } else {
+  1349→      setMsg({ kind: "err", text: data.error || "Saving the key failed." });
+  1350→    }
+  1351→    setBusy(false);
+  1352→  }
+  1353→
+  1354→  async function clearKey(which: "plunder_riffle" | "exa") {
+  1355→    setBusy(true);
+  1356→    setMsg(null);
+  1357→    try {
+  1358→      const res = await fetch("/api/keys", {
+  1359→        method: "DELETE",
+  1360→        headers: { "Content-Type": "application/json" },
+  1361→        body: JSON.stringify({ passcode, service: which }),
+  1362→      });
+  1363→      const d = await res.json();
+  1364→      if (!res.ok) {
+  1365→        setMsg({ kind: "err", text: d.error || "Clearing the key failed." });
+  1366→        setBusy(false);
+  1367→        return;
+  1368→      }
+  1369→      setMsg({ kind: "ok", text: "Key cleared from the runtime store." });
+  1370→      refreshKeys();
+  1371→    } catch {
+  1372→      setMsg({ kind: "err", text: "Network error while clearing the key." });
+  1373→    }
+  1374→    setBusy(false);
+  1375→  }
+  1376→
+  1377→  return (
+  1378→    <div className="panel rounded-2xl p-5 sm:p-6">
+  1379→      <div className="flex items-start gap-3 rounded-xl border border-amber-400/25 bg-amber-400/5 p-4">
+  1380→        <Terminal className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+  1381→        <p className="text-xs leading-relaxed text-amber-100/80">
+  1382→          <strong className="font-semibold">BYOK — bring your own key.</strong> Keys are
+  1383→          stored server-side only (a 0600 file on this machine) and never sent back to the
+  1384→          browser — the UI shows a masked preview only. P&amp;R keys are verified with a
+  1385→          real <code className="font-mono">tools/list</code> probe before being saved. Demo
+  1386→          deployment passcode: <code className="font-mono text-amber-200">demo</code>{" "}
+  1387→          (override with the ADMIN_PASSCODE env var).
+  1388→        </p>
+  1389→      </div>
+  1390→
+  1391→      <div className="mt-5 grid gap-4 md:grid-cols-2">
+  1392→        <KeyCard status={prStatus} icon={<Terminal className="h-4 w-4 text-teal-300" />} />
+  1393→        <KeyCard status={exaStatus} icon={<Languages className="h-4 w-4 text-teal-300" />} />
+  1394→      </div>
+  1395→
+  1396→      <div className="mt-5 space-y-4">
+  1397→        <div>
+  1398→          <label className="kicker mb-1.5 block" htmlFor="setup-passcode">
+  1399→            Setup passcode
+  1400→          </label>
+  1401→          <Input
+  1402→            id="setup-passcode"
+  1403→            type="password"
+  1404→            value={passcode}
+  1405→            onChange={(e) => setPasscode(e.target.value)}
+  1406→            placeholder="demo"
+  1407→            className="max-w-xs border-white/15 bg-black/50 font-mono text-sm text-zinc-100 placeholder:text-zinc-600"
+  1408→          />
+  1409→        </div>
+  1410→
+  1411→        <div className="grid gap-4 md:grid-cols-2">
+  1412→          {(
+  1413→            [
+  1414→              {
+  1415→                id: "plunder_riffle" as const,
+  1416→                label: "Plunder & Riffle API key",
+  1417→                value: prKey,
+  1418→                set: setPrKey,
+  1419→                placeholder: "pr_live_…",
+  1420→                hint: "Enables generate_ad_creative, shop, generate_multilanguage_ads, create_one_minute and MP4 jobs.",
+  1421→              },
+  1422→              {
+  1423→                id: "exa" as const,
+  1424→                label: "Exa API key",
+  1425→                value: exaKey,
+  1426→                set: setExaKey,
+  1427→                placeholder: "uuid-…",
+  1428→                hint: "Enables Exa neural web research (api.exa.ai) for grounded SEO + content. Without it, the built-in SDK web search is used.",
+  1429→              },
+  1430→            ] as const
+  1431→          ).map((f) => (
+  1432→            <div key={f.id} className="rounded-xl border border-white/10 bg-black/30 p-4">
+  1433→              <label className="kicker mb-1.5 block" htmlFor={`key-${f.id}`}>
+  1434→                {f.label}
+  1435→              </label>
+  1436→              <div className="flex gap-2">
+  1437→                <Input
+  1438→                  id={`key-${f.id}`}
+  1439→                  type={showKeys ? "text" : "password"}
+  1440→                  value={f.value}
+  1441→                  onChange={(e) => f.set(e.target.value)}
+  1442→                  placeholder={f.placeholder}
+  1443→                  className="border-white/15 bg-black/50 font-mono text-sm text-zinc-100 placeholder:text-zinc-600"
+  1444→                  autoComplete="off"
+  1445→                />
+  1446→                <Button
+  1447→                  variant="outline"
+  1448→                  size="icon"
+  1449→                  className="h-10 w-10 shrink-0 border-white/15"
+  1450→                  onClick={() => setShowKeys(!showKeys)}
+  1451→                  aria-label={showKeys ? "Hide keys" : "Show keys"}
+  1452→                >
+  1453→                  {showKeys ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+  1454→                </Button>
+  1455→              </div>
+  1456→              <p className="mt-2 text-[11px] leading-relaxed text-zinc-500">{f.hint}</p>
+  1457→              <div className="mt-3 flex gap-2">
+  1458→                <Button
+  1459→                  onClick={() => save(f.id)}
+  1460→                  disabled={busy || !passcode || f.value.trim().length <= 8}
+  1461→                  className="h-9 bg-amber-400 text-black hover:bg-amber-300"
+  1462→                >
+  1463→                  {busy ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+  1464→                  <span className="ml-1.5">Save &amp; verify</span>
+  1465→                </Button>
+  1466→                {keys?.find((k) => k.service === f.id)?.configured && (
+  1467→                  <Button
+  1468→                    variant="outline"
+  1469→                    onClick={() => clearKey(f.id)}
+  1470→                    disabled={busy || !passcode}
+  1471→                    className="h-9 border-red-400/30 text-red-300 hover:bg-red-400/10"
+  1472→                  >
+  1473→                    <Trash2 className="h-3.5 w-3.5" />
+  1474→                    <span className="ml-1.5">Clear</span>
+  1475→                  </Button>
+  1476→                )}
+  1477→              </div>
+  1478→            </div>
+  1479→          ))}
+  1480→        </div>
+  1481→
+  1482→        {msg && (
+  1483→          <p
+  1484→            className={cn(
+  1485→              "rounded-lg border px-4 py-3 text-sm",
+  1486→              msg.kind === "ok"
+  1487→                ? "border-teal-400/30 bg-teal-400/10 text-teal-200"
+  1488→                : "border-red-400/30 bg-red-400/10 text-red-300"
+  1489→            )}
+  1490→          >
+  1491→            {msg.text}
+  1492→          </p>
+  1493→        )}
+  1494→      </div>
+  1495→    </div>
+  1496→  );
+  1497→}
+  1498→

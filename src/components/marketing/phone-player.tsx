@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 export type PhoneContent =
   | { kind: "video"; src: string; label?: string }
   | { kind: "image"; src: string; label?: string }
+  | { kind: "page"; src: string; label?: string }
   | { kind: "placeholder"; title: string; body: string; tone?: "idle" | "working" };
 
 /**
@@ -46,7 +47,8 @@ export default function PhonePlayer({
   }, [content]);
 
   const label =
-    content && (content.kind === "video" || content.kind === "image")
+    content &&
+    (content.kind === "video" || content.kind === "image" || content.kind === "page")
       ? content.label
       : undefined;
 
@@ -63,7 +65,7 @@ export default function PhonePlayer({
             <span>9:41</span>
             <span className="tracking-widest">DO SUPPLY ENGINE</span>
             <span className="flex items-center gap-1">
-              {content?.kind === "video" && (
+              {(content?.kind === "video" || content?.kind === "page") && (
                 <span className="h-1.5 w-1.5 rounded-full bg-teal-400" />
               )}
             </span>
@@ -87,6 +89,18 @@ export default function PhonePlayer({
                     : "Generate in the studio — videos and creatives land in this phone automatically."}
                 </p>
               </div>
+            ) : content.kind === "page" ? (
+              <iframe
+                key={content.src}
+                src={`/api/mcp/preview?url=${encodeURIComponent(content.src)}`}
+                className="h-full w-full border-0 bg-black"
+                /* Sandboxed WITHOUT allow-same-origin — the proxied page runs
+                   in an opaque origin and cannot touch this site. */
+                sandbox="allow-scripts allow-popups"
+                allow="autoplay"
+                title={label ?? "P&R engine preview page"}
+                referrerPolicy="no-referrer"
+              />
             ) : content.kind === "video" ? (
               <video
                 key={content.src}
@@ -126,9 +140,11 @@ export default function PhonePlayer({
               <span className="truncate font-mono text-[9px] tracking-widest text-zinc-300 uppercase">
                 {content?.kind === "video"
                   ? "Playing · P&R engine output"
-                  : content?.kind === "image"
-                    ? "Creative · P&R engine output"
-                    : "Studio phone standing by"}
+                  : content?.kind === "page"
+                    ? "Preview page · P&R engine output"
+                    : content?.kind === "image"
+                      ? "Creative · P&R engine output"
+                      : "Studio phone standing by"}
               </span>
             </div>
           </div>

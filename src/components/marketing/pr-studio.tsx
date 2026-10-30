@@ -7,6 +7,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { postJson, McpStatusPill } from "./shared";
 import PhonePlayer, { loadStudioPhone, type PhoneContent } from "./phone-player";
+import RenderProgress from "./render-progress";
+import {
+  VIDEO_RENDER_JOKES,
+  MP4_RENDER_JOKES,
+  AUDIO_RENDER_JOKES,
+  STUDIO_RENDER_JOKES,
+} from "@/lib/render-jokes";
 import { cn } from "@/lib/utils";
 import {
   Image as ImageIcon,
@@ -317,7 +324,7 @@ export default function PrStudio() {
           {/* The delivery phone — engine assets play here, no click-away. */}
           <aside
             ref={phoneRailRef}
-            className="panel noise-overlay relative rounded-2xl p-4 sm:p-5 xl:sticky xl:top-24"
+            className="panel noise-overlay relative overflow-x-clip rounded-2xl p-4 sm:p-5 xl:sticky xl:top-24"
             aria-label="Studio phone — in-page asset delivery"
           >
             <div className="mb-4 flex items-center justify-between gap-2">
@@ -646,13 +653,21 @@ function MultilangTab({ mcpLive }: { mcpLive: boolean }) {
       </p>
 
       {loading && (
-        <div className="mt-5 grid gap-3 sm:grid-cols-3">
-          {langs.map((l) => (
-            <div key={l} className="space-y-2">
-              <Skeleton className="h-40 rounded-xl bg-white/5" />
-              <p className="text-center font-mono text-[10px] text-zinc-500">{l} · rendering…</p>
-            </div>
-          ))}
+        <div className="mt-5 space-y-4">
+          <RenderProgress
+            expectedMs={150_000}
+            jokes={STUDIO_RENDER_JOKES}
+            label={`Native ${langs.length}-language batch`}
+            pollNote="engine billed per language · usually 1–4 min"
+          />
+          <div className="grid gap-3 sm:grid-cols-3">
+            {langs.map((l) => (
+              <div key={l} className="space-y-2">
+                <Skeleton className="h-40 rounded-xl bg-white/5" />
+                <p className="text-center font-mono text-[10px] text-zinc-500">{l} · rendering…</p>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -939,8 +954,11 @@ function VideoTab({
   const mp4Failed = mp4?.status === "failed";
 
   /* Auto-delivery: the studio phone plays the video the moment the MP4
-     exists, and shows a one-approval-away card while only the preview
-     page exists. No click-away required at any point. */
+     exists. Before that, the engine's actual captioned preview PAGE loads
+     and plays in the phone as soon as it exists (proxied through
+     /api/mcp/preview — the engine sets frame-ancestors, so a same-origin
+     pass-through is the only honest way to show it in-page).
+     No click-away required at any point. */
   const lastPhoneRef = useRef<string | null>(null);
   useEffect(() => {
     const mp4Url = mp4?.mp4Url;
@@ -953,13 +971,12 @@ function VideoTab({
       });
       return;
     }
-    if (done && video?.pageUrl && !mp4Url && lastPhoneRef.current !== `preview:${video.pageUrl}`) {
+    if (video?.pageUrl && !mp4Url && lastPhoneRef.current !== `preview:${video.pageUrl}`) {
       lastPhoneRef.current = `preview:${video.pageUrl}`;
       loadStudioPhone({
-        kind: "placeholder",
-        tone: "idle",
-        title: "Preview ready — one approval away",
-        body: "The engine's preview is a captioned page. Tap Approve & render MP4 and the finished video plays right here.",
+        kind: "page",
+        src: video.pageUrl,
+        label: done ? "P&R preview · finished page" : "P&R preview · live page",
       });
     }
   }, [mp4?.mp4Url, done, video?.pageUrl]);
@@ -1039,11 +1056,12 @@ function VideoTab({
                 )}
               </div>
               {(video.status === "rendering" || video.status === "queued" || video.status === "starting") && (
-                <p className="mt-2 text-xs text-amber-200/80">
-                  The engine is writing, voicing and shooting the ~60s phone demo — polling
-                  every 15s. Usually done in 1–2 minutes; the link below goes live as soon as
-                  the preview page exists.
-                </p>
+                <RenderProgress
+                  expectedMs={90_000}
+                  jokes={VIDEO_RENDER_JOKES}
+                  label="Shooting the ~60s video demo"
+                  pollNote="polled every 15s · usually 1–2 min · preview link goes live the moment the page exists"
+                />
               )}
 
               {/* THE video link — the point of this tab */}
@@ -1089,10 +1107,13 @@ function VideoTab({
                     )}
                   </div>
                   {mp4?.error && <p className="mt-2 text-xs text-red-300">{mp4.error}</p>}
-                  {mp4?.status === "rendering" && (
-                    <p className="mt-2 text-xs text-amber-200/80">
-                      Rendering the MP4 — usually 1–3 minutes; polling every 15s.
-                    </p>
+                  {mp4 && !mp4Done && !mp4Failed && !mp4.error && (
+                    <RenderProgress
+                      expectedMs={120_000}
+                      jokes={MP4_RENDER_JOKES}
+                      label="Rendering your approved MP4"
+                      pollNote="mp4 job polled every 15s · usually 1–3 min"
+                    />
                   )}
                   {mp4Done && mp4?.mp4Url && (
                     <a
@@ -1203,15 +1224,25 @@ function AudioTab({ mcpLive }: { mcpLive: boolean }) {
   const done = audio?.status === "done";
   const failed = audio?.status === "failed";
 
-  /* Auto-delivery: a rendered 60s take plays in the studio phone. */
+  /* Auto-delivery: the preview page loads in the phone as soon as it
+     exists; a rendered 60s take takes over the moment it exists. */
   const lastPhoneRef = useRef<string | null>(null);
   useEffect(() => {
     const mp4Url = audio?.mp4Url;
     if (mp4Url && lastPhoneRef.current !== mp4Url) {
       lastPhoneRef.current = mp4Url;
       loadStudioPhone({ kind: "video", src: mp4Url, label: "P&R 60s take · rendered MP4" });
+      return;
     }
-  }, [audio?.mp4Url]);
+    if (audio?.pageUrl && !mp4Url && lastPhoneRef.current !== `preview:${audio.pageUrl}`) {
+      lastPhoneRef.current = `preview:${audio.pageUrl}`;
+      loadStudioPhone({
+        kind: "page",
+        src: audio.pageUrl,
+        label: done ? "P&R 60s take · finished page" : "P&R 60s take · preview page",
+      });
+    }
+  }, [audio?.mp4Url, audio?.pageUrl, done]);
 
   return (
     <div className="panel rounded-2xl p-5 sm:p-6">
@@ -1265,10 +1296,12 @@ function AudioTab({ mcpLive }: { mcpLive: boolean }) {
                 )}
               </div>
               {(audio.status === "rendering" || audio.status === "queued" || audio.status === "starting") && (
-                <p className="mt-2 text-xs text-amber-200/80">
-                  The engine is writing and voicing the take — polling every 15s. This can take
-                  a few minutes; the page keeps polling until done or failed.
-                </p>
+                <RenderProgress
+                  expectedMs={150_000}
+                  jokes={AUDIO_RENDER_JOKES}
+                  label="Writing + voicing the ~60s take"
+                  pollNote="engine polled every 15s · can take a few minutes"
+                />
               )}
               {audio.pageUrl && (
                 <a

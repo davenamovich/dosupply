@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { callMcpTool } from "@/lib/mcp/client";
+import { bumpStat } from "@/lib/session-stats";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -53,6 +54,7 @@ export async function POST(req: NextRequest) {
   }
 
   const d = result.data;
+  if (d.status === "done") bumpStat("jobsCompleted");
   return NextResponse.json({
     mode: "live",
     kind,

@@ -181,9 +181,9 @@ export default function Hero() {
       </div>
 
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-16 pb-14 lg:pt-24 lg:pb-20">
-        <div className="grid items-center gap-14 lg:grid-cols-[1.15fr_0.85fr]">
-          {/* Left: copy */}
-          <div>
+        <div className="grid min-w-0 items-center gap-14 lg:grid-cols-[1.15fr_0.85fr]">
+          {/* Left: copy — min-w-0 so nowrap descendants can't bust the track */}
+          <div className="min-w-0">
             <div className="mb-5 flex flex-wrap items-center gap-3">
               <span className="font-mono text-[10px] tracking-[0.3em] uppercase text-zinc-400">
                 DO SUPPLY <span className="text-amber-300">×</span> PLUNDER &amp; RIFFLE
@@ -246,7 +246,7 @@ export default function Hero() {
           </div>
 
           {/* Right: phone */}
-          <div className="relative">
+          <div className="relative min-w-0">
             <PhoneMock posts={PHONE_FEED} />
             {/* production indicator */}
             <div className="mx-auto mt-6 max-w-md panel rounded-xl px-4 py-3">
@@ -258,7 +258,9 @@ export default function Hero() {
               </div>
               <div className="mt-1.5 flex items-center gap-2 font-mono text-[11px] text-zinc-300">
                 <span className="amber-dot h-1.5 w-1.5 rounded-full bg-amber-300" />
-                <span className="caret truncate">{TICKER_LINES[lineIdx]}</span>
+                {/* min-w-0: `truncate` is nowrap, so without shrink permission
+                    this line's min-content (~400px) busts the 375px layout. */}
+                <span className="caret truncate min-w-0 flex-1">{TICKER_LINES[lineIdx]}</span>
               </div>
             </div>
           </div>

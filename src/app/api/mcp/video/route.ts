@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { callMcpTool, mcpKeyConfigured } from "@/lib/mcp/client";
 import { rateLimit } from "@/lib/ai";
+import { bumpStat } from "@/lib/session-stats";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 180;
@@ -80,6 +81,7 @@ export async function POST(req: NextRequest) {
   }
 
   const d = result.data;
+  bumpStat("video");
   return NextResponse.json({
     mode: "live",
     tool: "create_phone_demo",

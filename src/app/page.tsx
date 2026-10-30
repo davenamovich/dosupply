@@ -5,6 +5,7 @@ import CommandCenter from "@/components/marketing/command-center";
 import ProductGallery from "@/components/marketing/product-gallery";
 import LiveDemo from "@/components/marketing/live-demo";
 import PrStudio from "@/components/marketing/pr-studio";
+import GrowthStats from "@/components/marketing/growth-stats";
 import Roadmap from "@/components/marketing/roadmap";
 import FinalCta from "@/components/marketing/final-cta";
 import EasterEgg from "@/components/marketing/easter-egg";
@@ -22,6 +23,7 @@ export default function Page() {
         <ProductGallery />
         <LiveDemo />
         <PrStudio />
+        <GrowthStats />
         <Roadmap />
         <FinalCta />
         <EasterEgg />

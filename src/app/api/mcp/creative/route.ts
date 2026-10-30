@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { callMcpTool, mcpKeyConfigured, mcpUrl } from "@/lib/mcp/client";
 import { rateLimit } from "@/lib/ai";
+import { bumpStat } from "@/lib/session-stats";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 180;
@@ -141,6 +142,7 @@ export async function POST(req: NextRequest) {
   }
 
   const data = result.data;
+  bumpStat("creative");
   return NextResponse.json({
     mode: "live",
     tool: kind === "shop" ? "shop" : "generate_ad_creative",
