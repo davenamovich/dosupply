@@ -125,7 +125,16 @@ export default function SalesChat() {
       {/* Chat */}
       <section className="flex h-[calc(100dvh-3rem)] min-h-[560px] flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#12151b] shadow-[0_8px_40px_-12px_rgba(0,0,0,0.8)] lg:h-[min(760px,calc(100dvh-3rem))]">
         <header className="flex items-center justify-between gap-3 border-b border-white/5 px-5 py-3.5">
-          <Brand />
+          <div className="flex items-center gap-3">
+            <a
+              href="/"
+              aria-label="Back to the home page"
+              className="rounded-full border border-white/10 px-3 py-1.5 text-xs font-semibold text-zinc-100 transition hover:border-amber-400/50 hover:text-amber-300"
+            >
+              ← Home
+            </a>
+            <Brand />
+          </div>
           <div className="flex items-center gap-3">
             <span className="hidden items-center gap-1.5 text-xs font-medium text-zinc-300 sm:flex">
               <span className="relative flex h-2 w-2">
