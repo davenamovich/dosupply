@@ -7,7 +7,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { SeoOutput } from "@/app/api/generate/route";
 import { VERIFIED_PRODUCT_EXAMPLES } from "@/lib/demo-content";
 import { postJson, ProvenanceBadge } from "./shared";
-import { Globe, RefreshCw, Search, Link2, ShieldAlert } from "lucide-react";
+import { Globe, RefreshCw, Search, Link2, ShieldAlert, Sparkles } from "lucide-react";
+
+type ResearchResult = { title: string; url: string; snippet: string; host: string; date?: string };
+
+type ResearchResponse = {
+  provider?: string;
+  results?: ResearchResult[];
+  error?: string;
+};
 
 export default function ModuleSeo() {
   const [input, setInput] = useState("Allen-Bradley ControlLogix");
@@ -15,12 +23,40 @@ export default function ModuleSeo() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<SeoOutput | null>(null);
 
+  // Web research (Exa BYOK → built-in SDK web search fallback)
+  const [research, setResearch] = useState<ResearchResult[] | null>(null);
+  const [researchProvider, setResearchProvider] = useState<string | null>(null);
+  const [researchLoading, setResearchLoading] = useState(false);
+  const [researchError, setResearchError] = useState<string | null>(null);
+
+  async function runResearch() {
+    setResearchLoading(true);
+    setResearchError(null);
+    setResearch(null);
+    const { ok, data } = await postJson<ResearchResponse>("/api/research", {
+      query: `${input} industrial automation dosupply.com specifications`,
+      num: 5,
+    });
+    if (ok && data.results?.length) {
+      setResearch(data.results);
+      setResearchProvider(data.provider ?? null);
+    } else {
+      setResearchError(data.error || "No research results came back.");
+    }
+    setResearchLoading(false);
+  }
+
   async function generate() {
     setLoading(true);
     setError(null);
+    const facts = (research || [])
+      .slice(0, 5)
+      .map((r) => `- [${r.host}] ${r.title}: ${r.snippet.slice(0, 300)}`)
+      .join("\n");
     const { ok, data } = await postJson<{ data: SeoOutput }>("/api/generate", {
       mode: "seo",
       input,
+      facts,
     });
     if (ok && data.data) setResult(data.data);
     else setError(data.error || "Generation failed.");
@@ -64,6 +100,55 @@ export default function ModuleSeo() {
               ))}
             </div>
           </div>
+
+          <Button
+            variant="outline"
+            onClick={runResearch}
+            disabled={researchLoading || !input.trim()}
+            className="w-full border-teal-400/40 bg-teal-400/5 text-teal-200 hover:bg-teal-400/15 hover:text-teal-100"
+          >
+            {researchLoading ? (
+              <>
+                <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> Searching the web…
+              </>
+            ) : (
+              <>
+                <Sparkles className="mr-2 h-4 w-4" /> Research on the web (Exa / live search)
+              </>
+            )}
+          </Button>
+          {researchProvider && (
+            <p className="font-mono text-[10px] text-zinc-500">
+              research provider: {researchProvider === "exa" ? "exa.ai (BYOK)" : "built-in web search"}
+            </p>
+          )}
+          {researchError && (
+            <p className="rounded-lg border border-red-400/30 bg-red-400/10 px-3 py-2 text-xs text-red-300">
+              {researchError}
+            </p>
+          )}
+          {research && research.length > 0 && (
+            <div className="panel rounded-xl p-3.5">
+              <p className="kicker mb-2">Live sources — grounded into the generation</p>
+              <ul className="scroll-slim max-h-44 space-y-1.5 overflow-y-auto">
+                {research.map((r, i) => (
+                  <li key={i} className="text-xs leading-relaxed">
+                    <a
+                      href={r.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-teal-300 hover:text-teal-200"
+                    >
+                      [{r.host}] {r.title}
+                    </a>
+                    {r.snippet && (
+                      <span className="text-zinc-500"> — {r.snippet.slice(0, 140)}…</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           <Button
             onClick={generate}

@@ -15,6 +15,8 @@
  *    create_demo_pack, create_followup, get_job_status, get_usage, get_account
  */
 
+import { resolveKey } from "@/lib/runtime-keys";
+
 const MCP_URL =
   process.env.PLUNDER_RIFFLE_MCP_URL || "https://bot.plunderandriffle.com/api/mcp";
 
@@ -30,8 +32,16 @@ export type McpErrorCode =
   | "tool_error"
   | "parse_error";
 
-export function mcpKeyConfigured(): boolean {
-  const key = process.env.PLUNDER_RIFFLE_API_KEY;
+/**
+ * Key resolution: runtime BYOK store first (pasted from the setup panel),
+ * then the PLUNDER_RIFFLE_API_KEY env var. Both stay server-side only.
+ */
+export async function getMcpKey(): Promise<string | null> {
+  return resolveKey("plunder_riffle");
+}
+
+export async function mcpKeyConfigured(): Promise<boolean> {
+  const key = await getMcpKey();
   return typeof key === "string" && key.trim().length > 8;
 }
 
@@ -64,12 +74,13 @@ export async function callMcpTool<T = unknown>(
   args: Record<string, unknown> = {},
   timeoutMs = 90_000
 ): Promise<McpResult<T>> {
-  if (!mcpKeyConfigured()) {
+  const apiKey = await getMcpKey();
+  if (!apiKey || apiKey.trim().length <= 8) {
     return {
       ok: false,
       code: "no_key",
       error:
-        "P&R MCP API key is not configured on the server (PLUNDER_RIFFLE_API_KEY). Running in demonstration mode.",
+        "P&R MCP API key is not configured on the server (BYOK setup panel or PLUNDER_RIFFLE_API_KEY). Running in demonstration mode.",
     };
   }
 
@@ -82,7 +93,7 @@ export async function callMcpTool<T = unknown>(
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json, text/event-stream",
-        Authorization: `Bearer ${process.env.PLUNDER_RIFFLE_API_KEY}`,
+        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
         jsonrpc: "2.0",
@@ -171,8 +182,10 @@ export async function probeMcpStatus(force = false): Promise<McpStatus> {
     return statusCache;
   }
 
+  const apiKey = await getMcpKey();
+  const keyConfigured = typeof apiKey === "string" && apiKey.trim().length > 8;
   const base: McpStatus = {
-    keyConfigured: mcpKeyConfigured(),
+    keyConfigured,
     connected: false,
     serverName: null,
     serverVersion: null,
@@ -194,7 +207,7 @@ export async function probeMcpStatus(force = false): Promise<McpStatus> {
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json, text/event-stream",
-        Authorization: `Bearer ${process.env.PLUNDER_RIFFLE_API_KEY}`,
+        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
         jsonrpc: "2.0",

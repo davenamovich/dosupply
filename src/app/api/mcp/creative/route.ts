@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
   const kind = body.kind === "shop" ? "shop" : "creative";
   const format = body.format || "carousel";
 
-  if (!mcpKeyConfigured()) {
+  if (!(await mcpKeyConfigured())) {
     return NextResponse.json(
       {
         mode: "unavailable",

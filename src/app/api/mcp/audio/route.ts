@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Topic is required." }, { status: 400 });
   }
 
-  if (!mcpKeyConfigured()) {
+  if (!(await mcpKeyConfigured())) {
     return NextResponse.json(
       {
         mode: "unavailable",

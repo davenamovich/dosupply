@@ -4,6 +4,7 @@ import TickerBand from "@/components/marketing/ticker-band";
 import CommandCenter from "@/components/marketing/command-center";
 import ProductGallery from "@/components/marketing/product-gallery";
 import LiveDemo from "@/components/marketing/live-demo";
+import PrStudio from "@/components/marketing/pr-studio";
 import Roadmap from "@/components/marketing/roadmap";
 import FinalCta from "@/components/marketing/final-cta";
 import EasterEgg from "@/components/marketing/easter-egg";
@@ -19,6 +20,7 @@ export default function Page() {
         <CommandCenter />
         <ProductGallery />
         <LiveDemo />
+        <PrStudio />
         <Roadmap />
         <FinalCta />
         <EasterEgg />

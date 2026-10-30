@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
 import { probeMcpStatus, mcpUrl } from "@/lib/mcp/client";
+import { keyStatus } from "@/lib/runtime-keys";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   const status = await probeMcpStatus();
+  const [prKey, exaKey] = await Promise.all([
+    keyStatus("plunder_riffle"),
+    keyStatus("exa"),
+  ]);
   return NextResponse.json({
     mcp: {
       keyConfigured: status.keyConfigured,
@@ -13,6 +18,19 @@ export async function GET() {
       serverVersion: status.serverVersion,
       error: status.error,
     },
+    keys: {
+      plunder_riffle: {
+        configured: prKey.configured,
+        masked: prKey.masked,
+        source: prKey.source,
+      },
+      exa: {
+        configured: exaKey.configured,
+        masked: exaKey.masked,
+        source: exaKey.source,
+      },
+    },
+    researchProvider: exaKey.configured ? "exa" : "sdk_web_search",
     endpoint: mcpUrl(),
     checkedAt: status.checkedAt,
   });

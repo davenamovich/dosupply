@@ -7,6 +7,7 @@ import { Cpu, Menu, X } from "lucide-react";
 const LINKS = [
   { href: "#command-center", label: "Command Center" },
   { href: "#live-demo", label: "Live Demo" },
+  { href: "#pr-studio", label: "P&R Studio" },
   { href: "#roadmap", label: "30-Day Plan" },
   { href: "#final", label: "Contact" },
 ];

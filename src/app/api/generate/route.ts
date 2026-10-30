@@ -104,6 +104,8 @@ export async function POST(req: NextRequest) {
   const theme = String(body.theme || "");
   const campaign = String(body.campaign || "");
   const format = String(body.format || "");
+  // Optional Exa/web-research grounding (server-side fetch of real snippets).
+  const facts = String(body.facts || "").slice(0, 4000);
   const review = body.review as { rating?: number; title?: string; text?: string; source?: string; author?: string } | undefined;
 
   if (!input.trim() && mode !== "reputation") {
@@ -123,7 +125,7 @@ export async function POST(req: NextRequest) {
         data = await genEmail(input, campaign);
         break;
       case "seo":
-        data = await genSeo(input);
+        data = await genSeo(input, facts);
         break;
       case "reputation":
         data = await genReputation(review);
@@ -264,7 +266,7 @@ ${JSON_ONLY_INSTRUCTION}`;
   };
 }
 
-async function genSeo(input: string): Promise<SeoOutput> {
+async function genSeo(input: string, facts = ""): Promise<SeoOutput> {
   const sys = `You are an industrial SEO specialist for DO Supply (industrial automation replacement parts, dosupply.com).
 ${DO_SUPPLY_CONTEXT}
 ${BRAND_RULES}
@@ -273,7 +275,10 @@ Output JSON shape:
 {"seoTitle": string (max 60 chars), "metaDescription": string (max 155 chars), "productDescription": string (2 paragraphs, platform-level, honest), "articleOutline": [string] (6-8 H2-style section titles for an educational article), "faqs": [{"q": string, "a": string}] (4 FAQs an engineer would actually search, answers 1-3 sentences), "internalLinks": [{"anchor": string, "target": string}] (3 suggested internal links where target is a generic path like "/category/plc" — descriptive, not fake URLs), "altTexts": [string] (3 image alt texts), "keywords": [string] (6-8 search keywords)}
 ${JSON_ONLY_INSTRUCTION}`;
 
-  const text = await chat(sys, `Product or URL: ${input}`);
+  const userMsg = facts.trim()
+    ? `Product or URL: ${input}\n\nVERIFIED WEB RESEARCH (use these facts, do not contradict them; ignore anything off-topic):\n${facts}`
+    : `Product or URL: ${input}`;
+  const text = await chat(sys, userMsg);
   const parsed = parseJsonLoose<SeoOutput>(text);
   return {
     seoTitle: parsed.seoTitle || "",
