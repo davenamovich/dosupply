@@ -20,9 +20,8 @@ type PhoneDemoStart = {
  * Calls P&R MCP create_phone_demo — a ~60s sit-down video where the
  * generated posts land on the host's phone. Returns a jobId for polling
  * via /api/mcp/job (kind "sitdown"), usually 1–2 min.
- * Per the tool schema: done carries pageUrl (a preview, no MP4). MP4
- * rendering is a separate human-approved step (request_mp4) that is
- * triggered by the user clicking the render button — never auto-fired.
+ * Per the tool schema: done carries pageUrl (a preview, no MP4). This app
+ * does not render MP4s.
  */
 export async function POST(req: NextRequest) {
   const ip = clientIp(req);

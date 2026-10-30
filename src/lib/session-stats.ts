@@ -14,7 +14,6 @@ export type StatKey =
   | "creative"
   | "multilang"
   | "video"
-  | "mp4"
   | "audio"
   | "jobsCompleted";
 
@@ -32,7 +31,6 @@ function store(): StatStore {
         creative: 0,
         multilang: 0,
         video: 0,
-        mp4: 0,
         audio: 0,
         jobsCompleted: 0,
       },

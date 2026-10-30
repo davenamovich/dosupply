@@ -5,7 +5,6 @@ import {
   Image as ImageIcon,
   Languages,
   Clapperboard,
-  Film,
   AudioLines,
   CheckCircle2,
   TrendingUp,
@@ -88,7 +87,6 @@ type EngineStats = {
   creative: number;
   multilang: number;
   video: number;
-  mp4: number;
   audio: number;
   jobsCompleted: number;
   sessionStartedAt: number;
@@ -102,7 +100,6 @@ const REAL_TILES: {
   { key: "creative", label: "Ad creatives generated", icon: ImageIcon },
   { key: "multilang", label: "Multilang batches", icon: Languages },
   { key: "video", label: "Video demos started", icon: Clapperboard },
-  { key: "mp4", label: "MP4 renders requested", icon: Film },
   { key: "audio", label: "60s audio takes", icon: AudioLines },
   { key: "jobsCompleted", label: "Engine jobs finished", icon: CheckCircle2 },
 ];

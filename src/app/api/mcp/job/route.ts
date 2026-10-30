@@ -16,7 +16,7 @@ type JobStatus = {
 
 /**
  * POST /api/mcp/job — poll an async P&R MCP job via get_job_status.
- * body: { kind: "one_minute"|"mp4"|"sitdown"|"funnel"|..., jobId: string }
+ * body: { kind: "one_minute"|"sitdown"|"funnel"|..., jobId: string }
  * Free per the tool schema. Statuses: rendering | done | failed.
  */
 export async function POST(req: NextRequest) {
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const allowed = ["one_minute", "mp4", "sitdown", "funnel", "localize", "demo_pack", "audioscript"];
+  const allowed = ["one_minute", "sitdown", "funnel", "localize", "demo_pack", "audioscript"];
   if (!allowed.includes(kind)) {
     return NextResponse.json(
       { error: `Unsupported job kind "${kind}".` },

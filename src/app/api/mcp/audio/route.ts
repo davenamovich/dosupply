@@ -18,8 +18,8 @@ type OneMinuteStart = {
  * body: { topic: string }
  * Calls P&R MCP create_one_minute — writes + voices a ~60s captioned take.
  * Returns a jobId for polling via /api/mcp/job (kind "one_minute").
- * Per the tool schema: the result is a page preview; MP4 rendering is a
- * separate approval-gated step (request_mp4) we do NOT auto-trigger.
+ * Per the tool schema: the result is a page preview. This app does not
+ * render MP4s.
  */
 export async function POST(req: NextRequest) {
   const ip = clientIp(req);

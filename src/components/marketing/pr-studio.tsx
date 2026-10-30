@@ -10,7 +10,6 @@ import PhonePlayer, { loadStudioPhone, type PhoneContent } from "./phone-player"
 import RenderProgress from "./render-progress";
 import {
   VIDEO_RENDER_JOKES,
-  MP4_RENDER_JOKES,
   AUDIO_RENDER_JOKES,
   STUDIO_RENDER_JOKES,
 } from "@/lib/render-jokes";
@@ -29,7 +28,6 @@ import {
   Eye,
   EyeOff,
   Clapperboard,
-  Film,
   Play,
 } from "lucide-react";
 
@@ -905,13 +903,6 @@ type VideoState = {
   error: string | null;
 };
 
-type Mp4State = {
-  jobId: string | null;
-  status: string | null;
-  mp4Url: string | null;
-  error: string | null;
-};
-
 function VideoTab({
   mcpLive,
   request,
@@ -925,10 +916,7 @@ function VideoTab({
   const [shape, setShape] = useState<"mixed" | "ranked">("mixed");
   const [starting, setStarting] = useState(false);
   const [video, setVideo] = useState<VideoState | null>(null);
-  const [mp4, setMp4] = useState<Mp4State | null>(null);
-  const [mp4Busy, setMp4Busy] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const mp4PollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const stopPolling = useCallback(() => {
     if (pollRef.current) {
@@ -937,20 +925,7 @@ function VideoTab({
     }
   }, []);
 
-  const stopMp4Polling = useCallback(() => {
-    if (mp4PollRef.current) {
-      clearInterval(mp4PollRef.current);
-      mp4PollRef.current = null;
-    }
-  }, []);
-
-  useEffect(
-    () => () => {
-      stopPolling();
-      stopMp4Polling();
-    },
-    [stopPolling, stopMp4Polling]
-  );
+  useEffect(() => () => stopPolling(), [stopPolling]);
 
   function startPolling(jobId: string) {
     stopPolling();
@@ -975,34 +950,10 @@ function VideoTab({
     }, 15_000);
   }
 
-  function startMp4Polling(jobId: string) {
-    stopMp4Polling();
-    mp4PollRef.current = setInterval(async () => {
-      const { ok, data } = await postJson<{
-        status?: string;
-        mp4Url?: string | null;
-        error?: string | null;
-      }>("/api/mcp/job", { kind: "mp4", jobId });
-      if (!ok) return; // transient — keep polling
-      setMp4((prev) =>
-        prev
-          ? {
-              ...prev,
-              status: data.status ?? prev.status,
-              mp4Url: data.mp4Url ?? prev.mp4Url,
-              error: data.error ?? prev.error,
-            }
-          : prev
-      );
-      if (data.status === "done" || data.status === "failed") stopMp4Polling();
-    }, 15_000);
-  }
-
   async function start(topicArg?: string) {
     const t = (topicArg ?? topic).trim();
     if (!t) return;
     setStarting(true);
-    setMp4(null);
     setVideo({ jobId: null, status: "starting", pageUrl: null, error: null });
     const { ok, data } = await postJson<{
       mode?: string;
@@ -1050,63 +1001,15 @@ function VideoTab({
     return () => window.clearTimeout(t);
   }, [request]);
 
-  /** Human approval step — clicking IS the approval request_mp4 requires. */
-  async function requestMp4() {
-    if (!video?.pageUrl) return;
-    setMp4Busy(true);
-    setMp4({ jobId: null, status: "starting", mp4Url: null, error: null });
-    const { ok, data } = await postJson<{
-      mode?: string;
-      jobId?: string | null;
-      status?: string;
-      mp4Url?: string | null;
-      error?: string;
-      code?: string;
-    }>("/api/mcp/mp4", { pageUrl: video.pageUrl });
-    if (ok && data.mode === "live") {
-      const st: Mp4State = {
-        jobId: data.jobId ?? null,
-        status: data.status ?? "queued",
-        mp4Url: data.mp4Url ?? null,
-        error: null,
-      };
-      setMp4(st);
-      if (st.jobId && !st.mp4Url) startMp4Polling(st.jobId);
-    } else {
-      setMp4({
-        jobId: null,
-        status: null,
-        mp4Url: null,
-        error: (data.error as string) || "request_mp4 failed.",
-      });
-    }
-    setMp4Busy(false);
-  }
-
   const done = video?.status === "done";
   const failed = video?.status === "failed";
-  const mp4Done = mp4?.status === "done" || !!mp4?.mp4Url;
-  const mp4Failed = mp4?.status === "failed";
 
-  /* Auto-delivery: the studio phone plays the video the moment the MP4
-     exists. Before that, the engine's actual captioned preview PAGE loads
-     and plays in the phone as soon as it exists (proxied through
-     /api/mcp/preview — the engine sets frame-ancestors, so a same-origin
-     pass-through is the only honest way to show it in-page).
-     No click-away required at any point. */
+  /* Auto-delivery: the engine's captioned preview PAGE loads and plays in the
+     studio phone as soon as it exists (proxied through /api/mcp/preview, since
+     the engine sets frame-ancestors). No click-away required. */
   const lastPhoneRef = useRef<string | null>(null);
   useEffect(() => {
-    const mp4Url = mp4?.mp4Url;
-    if (mp4Url && lastPhoneRef.current !== mp4Url) {
-      lastPhoneRef.current = mp4Url;
-      loadStudioPhone({
-        kind: "video",
-        src: mp4Url,
-        label: "P&R video demo · rendered MP4",
-      });
-      return;
-    }
-    if (video?.pageUrl && !mp4Url && lastPhoneRef.current !== `preview:${video.pageUrl}`) {
+    if (video?.pageUrl && lastPhoneRef.current !== `preview:${video.pageUrl}`) {
       lastPhoneRef.current = `preview:${video.pageUrl}`;
       loadStudioPhone({
         kind: "page",
@@ -1114,7 +1017,7 @@ function VideoTab({
         label: done ? "P&R preview · finished page" : "P&R preview · live page",
       });
     }
-  }, [mp4?.mp4Url, done, video?.pageUrl]);
+  }, [done, video?.pageUrl]);
 
   return (
     <div className="panel rounded-2xl p-5 sm:p-6">
@@ -1161,8 +1064,7 @@ function VideoTab({
 
       <p className="mt-3 font-mono text-[10px] text-zinc-600">
         tool: create_phone_demo → get_job_status (kind sitdown) polled every 15s ·
-        the engine returns a captioned preview page; the MP4 renders only after
-        you approve it{!mcpLive && " · BYOK key not set yet (see BYOK Setup)"}
+        the engine returns a captioned preview page{!mcpLive && " · BYOK key not set yet (see BYOK Setup)"}
       </p>
 
       {video && (
@@ -1218,51 +1120,6 @@ function VideoTab({
                 </div>
               )}
 
-              {done && video.pageUrl && (
-                <div className="mt-4 rounded-lg border border-white/10 bg-black/30 p-3.5">
-                  <p className="text-xs leading-relaxed text-zinc-400">
-                    Happy with the preview? Approving it unlocks an MP4 render — the
-                    engine&apos;s one explicit human-approval step. We never fire it
-                    automatically.
-                  </p>
-                  <div className="mt-2.5 flex flex-wrap items-center gap-2.5">
-                    <Button
-                      onClick={requestMp4}
-                      disabled={mp4Busy || (mp4 != null && !mp4Done && !mp4Failed)}
-                      className="h-9 bg-teal-400 font-bold text-black hover:bg-teal-300"
-                    >
-                      {mp4Busy ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Film className="h-3.5 w-3.5" />}
-                      <span className="ml-1.5">Approve &amp; render MP4</span>
-                    </Button>
-                    {mp4 && !mp4.error && (
-                      <span className="font-mono text-[10px] uppercase tracking-widest text-zinc-500">
-                        mp4 job: {mp4.status ?? "unknown"}
-                        {mp4.jobId ? ` · ${mp4.jobId}` : ""}
-                      </span>
-                    )}
-                  </div>
-                  {mp4?.error && <p className="mt-2 text-xs text-red-300">{mp4.error}</p>}
-                  {mp4 && !mp4Done && !mp4Failed && !mp4.error && (
-                    <RenderProgress
-                      expectedMs={120_000}
-                      jokes={MP4_RENDER_JOKES}
-                      label="Rendering your approved MP4"
-                      pollNote="mp4 job polled every 15s · usually 1–3 min"
-                    />
-                  )}
-                  {mp4Done && mp4?.mp4Url && (
-                    <a
-                      href={mp4.mp4Url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="mt-3 inline-flex items-center gap-2 rounded-lg border border-teal-400/40 bg-teal-400/10 px-4 py-2.5 text-sm font-semibold text-teal-200 transition-colors hover:bg-teal-400/20"
-                    >
-                      <Film className="h-4 w-4" /> Open the rendered MP4
-                      <ExternalLink className="h-3.5 w-3.5 opacity-70" />
-                    </a>
-                  )}
-                </div>
-              )}
             </>
           )}
         </div>
@@ -1401,8 +1258,7 @@ function AudioTab({ mcpLive }: { mcpLive: boolean }) {
 
       <p className="mt-3 font-mono text-[10px] text-zinc-600">
         tool: create_one_minute → get_job_status polled every 15s · the engine returns a
-        captioned page preview; an MP4 is a separate approval-gated step we never
-        auto-trigger{!mcpLive && " · BYOK key not set yet (see BYOK Setup)"}
+        captioned page preview. This app does not render MP4s{!mcpLive && " · BYOK key not set yet (see BYOK Setup)"}
       </p>
 
       {audio && (
@@ -1586,7 +1442,7 @@ function SetupTab({
                 value: prKey,
                 set: setPrKey,
                 placeholder: "pr_live_…",
-                hint: "Enables generate_ad_creative, shop, generate_multilanguage_ads, create_one_minute and MP4 jobs.",
+                hint: "Enables generate_ad_creative, shop, generate_multilanguage_ads and create_one_minute.",
               },
               {
                 id: "exa" as const,
