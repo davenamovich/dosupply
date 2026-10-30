@@ -103,3 +103,17 @@ The `Dockerfile` builds the Next standalone output and runs `server.js` on `$POR
 
 `db/` is created during the build because the runtime store is gitignored, so a clean clone has no
 such directory.
+
+### Keep `package.json` and `bun.lock` in sync
+
+The image installs dependencies with `bun install --frozen-lockfile`, which **fails the build** if
+`package.json` and `bun.lock` disagree. Always commit both files together:
+
+```bash
+bun add <package>      # updates package.json and bun.lock
+bun remove <package>   # updates both as well
+```
+
+Editing `package.json` by hand (or resolving a merge conflict in only one of the two files) leaves
+the lockfile stale and breaks the Docker build, even though `bun run dev` keeps working locally
+because it is happy to re-resolve.
