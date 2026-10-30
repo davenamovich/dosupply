@@ -55,3 +55,6 @@ server.log
 /skills/
 # local runtime state / secrets
 db/runtime-keys.json
+
+db/sales-leads.json
+db/*.tmp
