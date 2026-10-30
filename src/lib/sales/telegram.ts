@@ -197,3 +197,81 @@ export async function retryFailedAlerts(): Promise<void> {
   );
   for (const id of due) await notifyLead(id);
 }
+
+/* ------------------------------------------------------------------ */
+/* Configuration check (no secrets in the result)                      */
+/* ------------------------------------------------------------------ */
+
+export type TelegramCheck = {
+  configured: boolean;
+  bot?: string;
+  chat?: { id: string; type: string; title?: string };
+  sent?: boolean;
+  problem?: string;
+  hint?: string;
+};
+
+async function tg<T>(method: string, body?: Record<string, unknown>): Promise<{ ok: boolean; result?: T; description?: string; migrateTo?: number }> {
+  const token = (process.env.TELEGRAM_BOT_TOKEN || "").trim();
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body ?? {}),
+      signal: AbortSignal.timeout(10_000),
+      cache: "no-store",
+    });
+    const json = (await res.json().catch(() => ({}))) as {
+      ok?: boolean;
+      result?: T;
+      description?: string;
+      parameters?: { migrate_to_chat_id?: number };
+    };
+    return { ok: Boolean(json.ok), result: json.result, description: scrub(json.description || `HTTP ${res.status}`), migrateTo: json.parameters?.migrate_to_chat_id };
+  } catch (err) {
+    return { ok: false, description: scrub(err instanceof Error ? err.message : String(err)) };
+  }
+}
+
+/** Tell the owner exactly what is wrong with the Telegram setup, and optionally send a test message. */
+export async function checkTelegram(sendTest: boolean): Promise<TelegramCheck> {
+  const token = (process.env.TELEGRAM_BOT_TOKEN || "").trim();
+  const chatId = (process.env.TELEGRAM_CHAT_ID || "").trim();
+  if (!token || !chatId) {
+    return {
+      configured: false,
+      problem: `${!token ? "TELEGRAM_BOT_TOKEN" : "TELEGRAM_CHAT_ID"} is not set on this server.`,
+      hint: "Set both variables in the host's environment and redeploy.",
+    };
+  }
+
+  const me = await tg<{ username?: string }>("getMe");
+  if (!me.ok) {
+    return { configured: true, problem: `Telegram rejected the bot token (${me.description}).`, hint: "Copy the token from @BotFather again. It looks like 123456789:AA…" };
+  }
+  const bot = me.result?.username ? `@${me.result.username}` : "bot";
+
+  const chat = await tg<{ id: number; type: string; title?: string; first_name?: string }>("getChat", { chat_id: chatId });
+  if (!chat.ok) {
+    const migrated = chat.migrateTo ? ` The group was upgraded to a supergroup. Use ${chat.migrateTo} instead.` : "";
+    const looksLikeGroupWithoutMinus = /^\d{7,}$/.test(chatId);
+    return {
+      configured: true,
+      bot,
+      problem: `Telegram can't find chat ${chatId} for ${bot} (${chat.description}).${migrated}`,
+      hint:
+        `${bot} must be a member of the chat, and TELEGRAM_CHAT_ID must be that chat's ID, not the bot's. ` +
+        "For a group, add the bot, post a message in the group, then get the ID from @RawDataBot or @userinfobot. Group IDs start with - (supergroups with -100). " +
+        "For a private chat, open the bot and press Start first." +
+        (looksLikeGroupWithoutMinus ? " The ID you set has no minus sign, which usually means a person, not a group." : ""),
+    };
+  }
+  const info = { id: String(chat.result?.id ?? chatId), type: chat.result?.type ?? "unknown", title: chat.result?.title || chat.result?.first_name };
+
+  if (!sendTest) return { configured: true, bot, chat: info };
+
+  const sent = await tg("sendMessage", { chat_id: chatId, text: "✅ DO Supply Sales Agent: test alert. Telegram is connected." });
+  return sent.ok
+    ? { configured: true, bot, chat: info, sent: true }
+    : { configured: true, bot, chat: info, sent: false, problem: `Sending failed (${sent.description}).`, hint: "If this says the bot was kicked or can't write, re-add it to the group and allow it to send messages." };
+}

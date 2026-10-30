@@ -17,7 +17,8 @@ import type { Lead, Session } from "./types";
 
 type Shape = { leads: Lead[]; sessions: Session[] };
 
-const FILE = path.join(process.cwd(), "db", "sales-leads.json");
+// SALES_DATA_DIR lets a mounted volume (e.g. /data on Railway) hold the leads file.
+const FILE = path.join(process.env.SALES_DATA_DIR?.trim() || path.join(process.cwd(), "db"), "sales-leads.json");
 const MAX_SESSIONS = 500;
 
 let queue: Promise<unknown> = Promise.resolve();
